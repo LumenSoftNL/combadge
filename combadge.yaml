@@ -30,7 +30,7 @@ ota:
 
 # This should point to the public location of this yaml file.
 dashboard_import:
-  package_import_url: github://esphome/esphome-project-template/project-template-esp32.yaml@v6
+  package_import_url: github://nielsnl68/combadge/combadge.yaml@main
   import_full_config: false # or true
 
 external_components:
