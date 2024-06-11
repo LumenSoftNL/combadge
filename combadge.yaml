@@ -1,14 +1,13 @@
 substitutions:
-  comment: Linda
-  project_version: "1"
-
+  name: "combadge"
+  friendly_name: "ComBadge Template"
+  project_version: 0.5
 esphome:
-  name: combadge
+  name: "${name}"
   name_add_mac_suffix: true
-  friendly_name: "${comment}"
-  comment: "ComBadge - ${comment}
+  friendly_name: "${friendly_name}"
   project:
-    name: combadge_${comment}
+    name: lumensoft.${friendly_name}
     version: ${project_version}
   min_version: 2023.11.1
 
@@ -17,35 +16,35 @@ esp32:
   framework:
     type: esp-idf
 
+# To be able to get logs from the device via serial and api.
 logger:
+
+# API is a requirement of the dashboard import.
 api:
+  on_client_connected:
+      - component.update: nowTalk
+      - rtttl.play: "Intro:d=32,o=5,b=300:g#4,h4,d#4,2p." 
+
+# OTA is required for Over-the-Air updating
 ota:
 
+# This should point to the public location of this yaml file.
 dashboard_import:
-  package_import_url: github://nielsnl68/combadge/combadge.yaml@main
+  package_import_url: github://esphome/esphome-project-template/project-template-esp32.yaml@v6
+  import_full_config: false # or true
 
 external_components:
-#  - source: github://pr#5230
-#    components:
-#      - esp_adf
-#    refresh: 0s
+  - source: github://pr#5230
+    components:
+      - esp_adf
   - source: github://pr#5968
     components:
       - rtttl
     refresh: 0s
-#  - source: github://pr#5230
-#    components:
-#      - esp_adf
-#    refresh: 0s
-  - source: github://pr#5230
+  - source: github://pr#6872
     components:
-      - voice_assistant
       - i2s_audio
-      - speaker
-      - api
     refresh: 0s
-    
-esp_adf:
 
 
 wifi:
@@ -57,7 +56,8 @@ wifi:
   ap:
 
 improv_serial:
-
+  next_url: https://lumensoft.nl/combadge/manual?ip={{ip_address}}&name={{device_name}}&version={{esphome_version}}
+  
 esp32_improv:
   authorizer: none
 
@@ -80,8 +80,8 @@ microphone:
 speaker:
   - platform: i2s_audio
     id: echo_speaker
-    i2s_dout_pin: GPIO22
     dac_type: external
+    i2s_dout_pin: GPIO22
     mode: mono
 
 voice_assistant:
@@ -92,6 +92,7 @@ voice_assistant:
   auto_gain: 31dBFS
   volume_multiplier: 2.0
   vad_threshold: 3
+
   on_listening:
     - light.turn_on:
         id: led
@@ -99,13 +100,13 @@ voice_assistant:
         red: 0%
         green: 0%
         effect: "Slow Pulse"
-  on_stt_vad_end:
-    - light.turn_on:
-        id: led
-        blue: 100%
-        red: 0%
-        green: 0%
-        effect: "Fast Pulse"
+    on_stt_vad_end:
+      - light.turn_on:
+          id: led
+          blue: 100%
+          red: 0%
+          green: 0%
+          effect: "Fast Pulse"
   on_tts_start:
     - light.turn_on:
         id: led
@@ -115,6 +116,13 @@ voice_assistant:
         brightness: 100%
         effect: none
   on_end:
+    - light.turn_on:
+        id: led
+        blue: 00%
+        red: 0%
+        green: 100%
+        brightness: 100%
+        effect: none
     - delay: 100ms
     - wait_until:
         not:
@@ -130,56 +138,13 @@ voice_assistant:
         effect: none
     - delay: 1s
     - script.execute: reset_led
-  on_client_connected:
-    - if:
-        condition:
-          switch.is_on: use_wake_word
-        then:
-          - voice_assistant.start_continuous:
-          - script.execute: reset_led
+    - rtttl.play: "TextAler:d=16,o=7,b=225:d,p,2g." 
   on_client_disconnected:
     - if:
-        condition:
-          switch.is_on: use_wake_word
+        condition: voice_assistant.is_running
         then:
           - voice_assistant.stop:
           - light.turn_off: led
-
-binary_sensor:
-  - platform: gpio
-    pin:
-      number: GPIO39
-      inverted: true
-    name: Button
-    disabled_by_default: true
-    entity_category: diagnostic
-    id: echo_button
-    on_multi_click:
-      - timing:
-          - ON for at least 150ms
-          - OFF for at least 50ms
-        then:
-          - if:
-              condition:
-                switch.is_off: use_wake_word
-              then:
-                - if:
-                    condition: voice_assistant.is_running
-                    then:
-                      - voice_assistant.stop:
-                      - script.execute: reset_led
-                    else:
-                      - voice_assistant.start:
-              else:
-                - voice_assistant.stop
-                - delay: 1s
-                - script.execute: reset_led
-                - script.wait: reset_led
-                - voice_assistant.start_continuous:
-      - timing:
-          - ON for at least 10s
-        then:
-          - button.press: factory_reset_btn
 
 light:
   - platform: esp32_rmt_led_strip
@@ -210,48 +175,74 @@ light:
 script:
   - id: reset_led
     then:
-      - if:
-          condition:
-            - switch.is_on: use_wake_word
-            - switch.is_on: use_listen_light
-          then:
-            - light.turn_on:
-                id: led
-                red: 100%
-                green: 89%
-                blue: 71%
-                brightness: 60%
-                effect: none
-          else:
-            - light.turn_off: led
+      - light.turn_off: led
 
-switch:
+esp32_touch:
+  setup_mode: false
+  iir_filter: 10ms
+
+button:
+  - platform: factory_reset
+    id: factory_reset_btn
+    name: Factory reset
+    disabled_by_default: true
+    entity_category: diagnostic
+
+binary_sensor:
+  - platform: esp32_touch
+    pin: T9
+    threshold: 900
+    name: Button
+    disabled_by_default: true
+    entity_category: diagnostic
+    id: echo_button2
+    on_multi_click:
+      - timing:
+          - ON for at least 150ms
+          - OFF for at least 50ms
+        then:
+          - if:
+              condition: voice_assistant.is_running
+              then:
+                - voice_assistant.stop:
+                - delay: 1s
+                - script.execute: reset_led
+                - rtttl.play: "Schooier:d=4,o=5,b=225:d,e4."
+                - wait_until:
+                    not:
+                      speaker.is_playing:           
+              else:
+                - rtttl.play: "KnockKno:d=32,o=5,b=300:e4,g6." 
+                - wait_until:
+                    not:
+                      speaker.is_playing:     
+                - voice_assistant.start:
+                - script.execute: reset_led
+                - script.wait: reset_led
+                - voice_assistant.start_continuous:
+      - timing:
+          - ON for at least 10s
+        then:
+          - button.press: factory_reset_btn
+
+
+rtttl:
+  speaker: echo_speaker
+  id: my_rtttl
+  gain: ${rttti_gain}
+
+
+remote_transmitter:
+  pin: 
+    number: GPIO12
+    ignore_strapping_warning: True
+  rmt_channel: 3
+  carrier_duty_percent: 50%
+
+text_sensor:
   - platform: template
-    name: Use wake word
-    id: use_wake_word
-    optimistic: true
-    restore_mode: RESTORE_DEFAULT_ON
-    entity_category: config
-    on_turn_on:
-      - lambda: id(va).set_use_wake_word(true);
-      - if:
-          condition:
-            not:
-              - voice_assistant.is_running
-          then:
-            - voice_assistant.start_continuous
-      - script.execute: reset_led
-    on_turn_off:
-      - voice_assistant.stop
-      - lambda: id(va).set_use_wake_word(false);
-      - script.execute: reset_led
-  - platform: template
-    name: Use listen light
-    id: use_listen_light
-    optimistic: true
-    restore_mode: RESTORE_DEFAULT_ON
-    entity_category: config
-    on_turn_on:
-      - script.execute: reset_led
-    on_turn_off:
-      - script.execute: reset_led
+    id: nowTalk
+    name: "nowTalk"
+    lambda: |-
+      return {badgeIDStr()};
+    update_interval: never
