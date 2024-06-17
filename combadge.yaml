@@ -1,6 +1,6 @@
 substitutions:
   name: "combadge"
-  friendly_name: "ComBadge Template"
+  friendly_name: "ComBadge`communicator"
   project_version: 0.5
 esphome:
   name: "${name}"
@@ -30,7 +30,7 @@ ota:
 
 # This should point to the public location of this yaml file.
 dashboard_import:
-  package_import_url: github://nielsnl68/combadge/combadge.yaml@main
+  package_import_url: github://LumenSoftNL/combadge/combadge.yaml@main
   import_full_config: false # or true
 
 external_components:
@@ -40,11 +40,10 @@ external_components:
   - source: github://pr#5968
     components:
       - rtttl
-    refresh: 0s
   - source: github://pr#6872
     components:
       - i2s_audio
-    refresh: 0s
+  - source: github://LumenSoftNL/combadge
 
 
 wifi:
@@ -55,9 +54,6 @@ wifi:
     - ble.enable:
   ap:
 
-improv_serial:
-  next_url: https://lumensoft.nl/combadge/manual?ip={{ip_address}}&name={{device_name}}&version={{esphome_version}}
-  
 esp32_improv:
   authorizer: none
 
