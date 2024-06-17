@@ -1,7 +1,9 @@
 substitutions:
   name: "combadge"
   friendly_name: "ComBadge`communicator"
-  project_version: 0.5
+  project_version: "0.5"
+  rttti_gain: "0.65"
+
 esphome:
   name: "${name}"
   name_add_mac_suffix: true
@@ -23,14 +25,15 @@ logger:
 api:
   on_client_connected:
       - component.update: nowTalk
-      - rtttl.play: "Intro:d=32,o=5,b=300:g#4,h4,d#4,2p." 
+      - rtttl.play: "Intro:d=32,o=5,b=300:g#4,h4,d#4,2p."
 
 # OTA is required for Over-the-Air updating
 ota:
+  - platform: esphome
 
 # This should point to the public location of this yaml file.
 dashboard_import:
-  package_import_url: github://LumenSoftNL/combadge/combadge.yaml@main
+  package_import_url: github://lumensoftnl/combadge/combadge.yaml
   import_full_config: false # or true
 
 external_components:
@@ -43,8 +46,9 @@ external_components:
   - source: github://pr#6872
     components:
       - i2s_audio
-  - source: github://LumenSoftNL/combadge
+  - source: github://lumensoftnl/combadge
 
+esp_adf:
 
 wifi:
   on_connect:
@@ -56,11 +60,6 @@ wifi:
 
 esp32_improv:
   authorizer: none
-
-button:
-  - platform: factory_reset
-    id: factory_reset_btn
-    name: Factory reset
 
 i2s_audio:
   i2s_lrclk_pin: GPIO33
@@ -96,7 +95,7 @@ voice_assistant:
         red: 0%
         green: 0%
         effect: "Slow Pulse"
-    on_stt_vad_end:
+  on_stt_vad_end:
       - light.turn_on:
           id: led
           blue: 100%
@@ -134,7 +133,7 @@ voice_assistant:
         effect: none
     - delay: 1s
     - script.execute: reset_led
-    - rtttl.play: "TextAler:d=16,o=7,b=225:d,p,2g." 
+    - rtttl.play: "TextAler:d=16,o=7,b=225:d,p,2g."
   on_client_disconnected:
     - if:
         condition: voice_assistant.is_running
@@ -184,6 +183,7 @@ button:
     disabled_by_default: true
     entity_category: diagnostic
 
+
 binary_sensor:
   - platform: esp32_touch
     pin: T9
@@ -206,12 +206,12 @@ binary_sensor:
                 - rtttl.play: "Schooier:d=4,o=5,b=225:d,e4."
                 - wait_until:
                     not:
-                      speaker.is_playing:           
+                      speaker.is_playing:
               else:
-                - rtttl.play: "KnockKno:d=32,o=5,b=300:e4,g6." 
+                - rtttl.play: "KnockKno:d=32,o=5,b=300:e4,g6."
                 - wait_until:
                     not:
-                      speaker.is_playing:     
+                      speaker.is_playing:
                 - voice_assistant.start:
                 - script.execute: reset_led
                 - script.wait: reset_led
@@ -229,7 +229,7 @@ rtttl:
 
 
 remote_transmitter:
-  pin: 
+  pin:
     number: GPIO12
     ignore_strapping_warning: True
   rmt_channel: 3
@@ -240,5 +240,5 @@ text_sensor:
     id: nowTalk
     name: "nowTalk"
     lambda: |-
-      return {badgeIDStr()};
+      return combadge::badgeIDStr();
     update_interval: never

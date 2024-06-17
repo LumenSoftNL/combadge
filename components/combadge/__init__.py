@@ -3,7 +3,7 @@ import esphome.config_validation as cv
 from esphome.core import coroutine_with_priority
 
 CODEOWNERS = ["@LumenSoftNL"]
-badgeid_ns = cg.esphome_ns.namespace("badge_id")
+combadge_ns = cg.esphome_ns.namespace("combadge")
 
 CONFIG_SCHEMA = cv.All(
     cv.Schema({}),
@@ -11,5 +11,5 @@ CONFIG_SCHEMA = cv.All(
 
 @coroutine_with_priority(1.0)
 async def to_code(config):
-    cg.add_define("USE_BADGE_ID")
-    cg.add_global(badgeid_ns.using)
+    cg.add_define("USE_COMBADGES")
+    cg.add_global(combadge_ns.using)

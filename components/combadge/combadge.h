@@ -11,7 +11,7 @@
 #include <ArduinoJson.h>
 
 namespace esphome {
-namespace badge_id {
+namespace combadge {
 
 
 uint64_t getEfuseMac(void)
@@ -70,5 +70,5 @@ bool checkBadgeID(std::vector< unsigned uint8_t > code) {
     return crc == baseChars.find((char) chr);
 }
 
-}  // namespace badge_id
+}  // namespace combadge
 }  // namespace esphome
