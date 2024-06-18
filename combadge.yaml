@@ -25,7 +25,7 @@ logger:
 api:
   on_client_connected:
       - component.update: nowTalk
-      - rtttl.play: "Intro:d=32,o=5,b=300:g#4,h4,d#4,2p."
+      - rtttl.play: "Urgent:d=8,o=6,b=500:c,e,d7,c,e,a#,c,e,a,c,e,g,c,e,a,c,e,a#,c,e,d7"
 
 # OTA is required for Over-the-Air updating
 ota:
