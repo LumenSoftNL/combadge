@@ -235,6 +235,9 @@ remote_transmitter:
   rmt_channel: 3
   carrier_duty_percent: 50%
 
+combadge:
+
+
 text_sensor:
   - platform: template
     id: nowTalk

@@ -4,12 +4,6 @@
 
 #include "esphome/core/helpers.h"
 
-#define ARDUINOJSON_ENABLE_STD_STRING 1  // NOLINT
-
-#define ARDUINOJSON_USE_LONG_LONG 1  // NOLINT
-
-#include <ArduinoJson.h>
-
 namespace esphome {
 namespace combadge {
 
