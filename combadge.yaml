@@ -1,7 +1,7 @@
 substitutions:
   name: "combadge"
-  friendly_name: "ComBadge`communicator"
-  project_version: "0.5"
+  friendly_name: "ComBadge communicator"
+  project_version: "0.5a"
   rttti_gain: "0.65"
 
 esphome:
@@ -47,6 +47,7 @@ external_components:
     components:
       - i2s_audio
   - source: github://lumensoftnl/combadge
+    refresh: 0s
 
 esp_adf:
 
@@ -58,8 +59,13 @@ wifi:
     - ble.enable:
   ap:
 
+captive_portal:
+
 esp32_improv:
-  authorizer: none
+  authorizer: echo_button2
+
+
+improv_serial:
 
 i2s_audio:
   i2s_lrclk_pin: GPIO33
@@ -235,8 +241,8 @@ remote_transmitter:
   rmt_channel: 3
   carrier_duty_percent: 50%
 
-combadge:
 
+combadge:
 
 text_sensor:
   - platform: template
