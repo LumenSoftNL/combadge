@@ -55,8 +55,6 @@ wifi:
   on_connect:
     - delay: 5s  # Gives time for improv results to be transmitted
     - ble.disable:
-  on_disconnect:
-    - ble.enable:
   ap:
 
 captive_portal:
