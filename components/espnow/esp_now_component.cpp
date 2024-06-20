@@ -15,20 +15,23 @@ namespace esp_now {
 static const char *const TAG = "esp_now";
 static const uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
-ESPNowPacket::ESPNowPacket(uint64_t mac_address, std::vector<uint8_t> data) {
+ESPNowPacket::ESPNowPacket(const uint64_t mac_address, const std::vector<uint8_t> data) {
   this->mac_address_ = mac_address;
-  std::copy(data, this->data_);
+ // std::copy(data, this->data_);
 }
 
-ESPNowPacket::ESPNowPacket(uint8_t *mac_address, const uint8_t *data, int len) {
+ESPNowPacket::ESPNowPacket(const uint8_t *mac_address, const uint8_t *data, int len) {
   std::copy_n(mac_address, ESP_NOW_ETH_ALEN, this->mac_address_);
   this->data_.resize(len);
-  std::copy_n(data, len, this->data_.begin());
+ // std::copy_n(data, len, this->data_.begin());
 }
 
 ESPNowComponent::ESPNowComponent() { global_esp_now = this; }
 
-void ESPNowComponent::log_error_(char *msg, esp_err_t err) { ESP_LOGE(TAG, msg, esp_err_to_name(err)); }
+void ESPNowComponent::log_error_(char *msg, esp_err_t err) {
+   ESP_LOGE(TAG, msg, esp_err_to_name(err));
+}
+
 /*
 esp_err_t ESPNowComponent::add_user_peer(uint8_t *addr) {
   if (esp_now_is_peer_exist(addr))

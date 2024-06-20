@@ -18,7 +18,7 @@ class ESPNowComponent;
 
 class ESPNowPacket {
  public:
-  ESPNowPacket(const uint64_t mac_address, std::vector<uint8_t> data);
+  ESPNowPacket(const uint64_t mac_address, const std::vector<uint8_t> data);
   ESPNowPacket(const uint8_t *mac_address, const uint8_t *data, int len);
 
   uint64_t mac_address() { return mac_address_; }
