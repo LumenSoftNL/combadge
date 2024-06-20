@@ -120,7 +120,7 @@ void ESPNowComponent::on_packet_received(ESPNowPacket *packet) {
 }
 
 void ESPNowComponent::send_packet(const ESPNowPacket *packet) {
-  global_esp_now->push_send_package.push(std::move(packet));
+  global_esp_now->push_send_packet.push(std::move(packet));
 }
 
 void ESPNowComponent::on_packet_send(ESPNowPacket *packet) {
@@ -143,7 +143,7 @@ void ESPNowComponent::loop() {
       if (packet->mac_address() == 0) {
         memcpy(mac_address, broadcastAddress, 6);
       } else {
-        memcpy(mac_address, @packet->mac_address(), 6);
+        memcpy(mac_address, &packet->mac_address(), 6);
       }
 
       if (!esp_now_is_peer_exist(mac_address)) {
@@ -203,16 +203,16 @@ void ESPNowComponent::on_data_received(const uint8_t *addr, const uint8_t *data,
 void ESPNowComponent::on_data_send(const uint8_t *mac_addr, esp_now_send_status_t status) {
   auto packet = global_esp_now->send_queue_.front();
   if (status != ESP_OK) {
-    this->log_error_(TAG, "on_data_send failed: %s", status);
+    global_esp_now->log_error_(TAG, "on_data_send failed: %s", status);
   } else if (std::memcmp(&packet->mac_address(), mac_addr, 6) != 0) {
-    this->log_error_(TAG, "Invalid mac address: %s", status);
+    global_esp_now->log_error_(TAG, "Invalid mac address: %s", status);
   } else {
-    on_packet_send(packet);
+    global_esp_now->on_packet_send(packet);
 
     global_esp_now->send_queue_.pop();
   }
 
-  this->can_send_ = true;
+  global_esp_now->can_send_ = true;
 }
 
 
