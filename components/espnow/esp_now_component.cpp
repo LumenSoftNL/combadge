@@ -124,6 +124,9 @@ void ESPNowComponent::on_packet_received(ESPNowPacket packet) {
   this->on_packet_receved_.call(*packet);
 }
 
+void ESPNowComponent::send_packet(const ESPNowPacket * packet) { global_esp_now->push_send_package.push(std::move(packet)); }
+
+
 void ESPNowComponent::on_packet_send(ESPNowPacket packet) {
   for (auto *listener : this->listeners_) {
     if (listener->on_packet_send(*packet)) {
@@ -132,7 +135,7 @@ void ESPNowComponent::on_packet_send(ESPNowPacket packet) {
   }
   this->on_packet_send_.call(*packet);
 }
-/* * /
+
 void ESPNowComponent::loop() {
   if (!send_queue_.empty() && this->can_send_ && !this->status_has_warning()) {
     auto packet = this->receive_queue_.front();

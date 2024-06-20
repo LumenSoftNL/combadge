@@ -65,13 +65,15 @@ class ESPNowComponent : public Component {
   static void on_data_send(const uint8_t *mac_addr, esp_now_send_status_t status);
 
   void dump_config() override;
-  float get_setup_priority() const override { return setup_priority::AFTER_CONNECTION; }
+  float get_setup_priority() const override {
+    return setup_priority::AFTER_CONNECTION; }
 
   void setup() override;
-/*
+
   void loop() override;
-*/
-  void set_wifi_channel(uint8_t channel) { this->wifi_channel_ = channel; }
+  void set_wifi_channel(uint8_t channel) {
+    this->wifi_channel_ = channel;
+  }
 
   void send_packet(const uint8_t *mac_address, const uint8_t *data, int len) {
     auto packet = new ESPNowPacket(mac_address, data, len);
@@ -83,7 +85,7 @@ class ESPNowComponent : public Component {
     send_packet(packet);
   }
 
-  void send_packet(const ESPNowPacket * packet) { global_esp_now->push_send_package.push(std::move(packet)); }
+  void send_packet(const ESPNowPacket * packet);
 
 
   void add_on_packet_send_callback(std::function<void(ESPNowPacket)> &&callback) {
@@ -93,24 +95,24 @@ class ESPNowComponent : public Component {
   void add_on_packet_receive_callback(std::function<void(ESPNowPacket)> &&callback) {
     this->on_packet_receved_.add(std::move(callback));
   }
-/*
+
   void register_listener(ESPNowListener *listener) {
     listener->set_parent(this);
     this->listeners_.push_back(listener);
   }
-*/
+
   virtual esp_err_t add_user_peer(uint8_t *addr);
-/*
+
   virtual void on_packet_received(ESPNowPacket packet);
   virtual void on_packet_send(ESPNowPacket packet);
-*/
-void push_receive_packet(ESPNowPacket packet) {
-    this->receive_queue_.push(std::move(packet));
-}
 
-void push_send_packet(ESPNowPacket packet) {
+  void push_receive_packet(ESPNowPacket packet) {
+    this->receive_queue_.push(std::move(packet));
+  }
+
+  void push_send_packet(ESPNowPacket packet) {
     this->send_queue_.push(std::move(packet));
-}
+  }
 
  protected:
   void log_error_(std::string msg, esp_err_t err);
@@ -149,7 +151,7 @@ template<typename... Ts> class SendAction : public Action<Ts...>, public Parente
     if (this->is_templated_data_) {
       data_ = this->data_func_(x...);
     }
-//    this->parent_->send_packet(mac_address_, data_);
+    //    this->parent_->send_packet(mac_address_, data_);
   }
 
  protected:
@@ -165,14 +167,14 @@ template<typename... Ts> class SendAction : public Action<Ts...>, public Parente
 class ESPNowSendTrigger : public Trigger<ESPNowPacket> {
  public:
   explicit ESPNowSendTrigger(ESPNowComponent *parent) {
-//    parent->add_on_packet_send_callback([this](ESPNowPacket value) { this->trigger(value); });
+    //    parent->add_on_packet_send_callback([this](ESPNowPacket value) { this->trigger(value); });
   }
 };
 
 class ESPNowReceiveTrigger : public Trigger<ESPNowPacket> {
  public:
   explicit ESPNowReceiveTrigger(ESPNowComponent *parent) {
-//    parent->add_on_packet_receive_callback([this](ESPNowPacket value) { this->trigger(value); });
+    //    parent->add_on_packet_receive_callback([this](ESPNowPacket value) { this->trigger(value); });
   }
 };
 
