@@ -5,7 +5,7 @@
 #include "esphome/core/helpers.h"
 
 namespace esphome {
-namespace combadge {
+namespace nowtalk {
 
 
 uint64_t getEfuseMac(void)
