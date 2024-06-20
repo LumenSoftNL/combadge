@@ -28,7 +28,7 @@ ESPNowPacket::ESPNowPacket(const uint8_t *mac_address, const uint8_t *data, int 
 
 ESPNowComponent::ESPNowComponent() { global_esp_now = this; }
 
-void ESPNowComponent::log_error_(char *msg, esp_err_t err) {
+void ESPNowComponent::log_error_(std::string msg, esp_err_t err) {
    ESP_LOGE(TAG, msg, esp_err_to_name(err));
 }
 
