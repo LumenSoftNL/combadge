@@ -120,7 +120,7 @@ void ESPNowComponent::on_packet_received(ESPNowPacket *packet) {
 }
 
 void ESPNowComponent::send_packet(const ESPNowPacket *packet) {
-  global_esp_now->push_send_packet(std::move(packet));
+  global_esp_now->push_send_packet(packet);
 }
 
 void ESPNowComponent::on_packet_send(ESPNowPacket *packet) {
@@ -140,10 +140,11 @@ void ESPNowComponent::loop() {
       packet->reset_counter();
     } else {
       uint8_t mac_address[6];
+      uint64_t pocket_mac = packet->mac_address();
       if (packet->mac_address() == 0) {
-        memcpy(mac_address, broadcastAddress, 6);
+        memcpy(&mac_address, &broadcastAddress, 6);
       } else {
-        memcpy(mac_address, &packet->mac_address(), 6);
+        memcpy(&mac_address, &pocket_mac, 6);
       }
 
       if (!esp_now_is_peer_exist(mac_address)) {
