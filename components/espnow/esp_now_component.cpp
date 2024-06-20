@@ -17,8 +17,7 @@ static const uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 ESPNowPacket::ESPNowPacket(const uint64_t mac_address, const std::vector<uint8_t> data) {
   this->mac_address_ = mac_address;
-  this->data_.resize(data.size);
-  std::copy_n(data.data(), data.size, this->data_.begin());
+  this->data_ = data;
 }
 
 ESPNowPacket::ESPNowPacket(const uint8_t *mac_address, const uint8_t *data, int len) {
