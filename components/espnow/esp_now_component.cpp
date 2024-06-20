@@ -185,7 +185,7 @@ void ESPNowComponent::on_data_received(const uint8_t *addr, const uint8_t *data,
 }
 
 void ESPNowComponent::on_data_send(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  auto packet = this->send_queue_.front();
+  auto packet = global_esp_now->send_queue_.front();
   if (status != ESP_OK) {
     this->log_error_(TAG, "on_data_send failed: %s", status);
   } else if (std::memcmp(&packet->mac_address(), mac_addr, 6) != 0) {

@@ -57,8 +57,11 @@ class ESPNowComponent : public Component {
  public:
   ESPNowComponent();
 
-  static void on_data_received(const esp_now_recv_info_t *esp_now_info, const uint8_t *data, int data_len);
-  static void on_data_send(const uint8_t *mac_addr, esp_now_send_status_t status);
+ #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 1)
+  void ESPNowComponent::on_data_received((const esp_now_recv_info_t *recv_info, const uint8_t *data, int size);
+#else
+  void ESPNowComponent::on_data_received(const uint8_t *addr, const uint8_t *data, int size);
+#endif  static void on_data_send(const uint8_t *mac_addr, esp_now_send_status_t status);
 
   void dump_config() override;
   float get_setup_priority() const override { return setup_priority::AFTER_CONNECTION; }
