@@ -72,7 +72,7 @@ class ESPNowComponent : public Component {
   void loop() override;
 */
   void set_wifi_channel(uint8_t channel) { this->wifi_channel_ = channel; }
-/*
+
   void send_packet(const uint8_t *mac_address, const uint8_t *data, int len) {
     auto packet = new ESPNowPacket(mac_address, data, len);
     send_packet(packet);
@@ -83,9 +83,9 @@ class ESPNowComponent : public Component {
     send_packet(packet);
   }
 
-  void send_packet(const ESPNowPacket * packet) { global_esp_now->send_queue_.push(std::move(packet)); }
+  void send_packet(const ESPNowPacket * packet) { global_esp_now->push_send_package.push(std::move(packet)); }
 
-
+/*
   void add_on_packet_send_callback(std::function<void(ESPNowPacket)> &&callback) {
     this->on_packet_send_.add(std::move(callback));
   }
@@ -104,6 +104,14 @@ class ESPNowComponent : public Component {
   virtual void on_packet_received(ESPNowPacket packet);
   virtual void on_packet_send(ESPNowPacket packet);
 */
+void push_receive_packet(ESPNowPacket packet) {
+    this->receive_queue_.push(std::move(packet));
+}
+
+void push_send_packet(ESPNowPacket packet) {
+    this->send_queue_.push(std::move(packet));
+}
+
  protected:
   void log_error_(std::string msg, esp_err_t err);
 

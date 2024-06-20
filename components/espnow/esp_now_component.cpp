@@ -22,6 +22,28 @@ namespace esp_now {
 static const char *const TAG = "esp_now";
 static const uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
+typedef struct {
+    uint16_t frame_head;
+    uint16_t duration;
+    uint8_t destination_address[6];
+    uint8_t source_address[6];
+    uint8_t broadcast_address[6];
+    uint16_t sequence_control;
+
+    uint8_t category_code;
+    uint8_t organization_identifier[3]; // 0x18fe34
+    uint8_t random_values[4];
+    struct {
+        uint8_t element_id;                 // 0xdd
+        uint8_t lenght;                     //
+        uint8_t organization_identifier[3]; // 0x18fe34
+        uint8_t type;                       // 4
+        uint8_t version;
+        uint8_t body[0];
+    } vendor_specific_content;
+} __attribute__((packed)) espnow_frame_format_t;
+
+
 ESPNowPacket::ESPNowPacket(const uint64_t mac_address, const std::vector<uint8_t> data) {
   this->mac_address_ = mac_address;
   this->data_ = data;
@@ -174,8 +196,8 @@ void ESPNowComponent::on_data_received(const uint8_t *addr, const uint8_t *data,
 
   packet->rssi(rx_ctrl->rssi);
   packet->timestamp(rx_ctrl->timestamp);
+  global_esp_now->push_receive_packet(packet);
 
-  global_esp_now->receive_queue_.push(std::move(packet));
 }
 
 void ESPNowComponent::on_data_send(const uint8_t *mac_addr, esp_now_send_status_t status) {
