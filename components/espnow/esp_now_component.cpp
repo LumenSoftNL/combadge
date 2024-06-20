@@ -1,6 +1,9 @@
 #include "esp_now_component.h"
 
-#include <esp_now.h>
+#include <string.h>
+#include "esp_system.h"
+#include "esp32-hal.h"
+#include "esp_wifi.h"
 
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"

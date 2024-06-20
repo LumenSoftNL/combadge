@@ -5,6 +5,7 @@
 #include "esphome/core/helpers.h"
 
 #include <esp_now.h>
+
 #include <array>
 #include <memory>
 #include <queue>
@@ -63,12 +64,12 @@ class ESPNowComponent : public Component {
   void set_wifi_channel(uint8_t channel) { this->wifi_channel_ = channel; }
 
   void send_packet(const uint8_t *mac_address, const uint8_t *data, int len) {
-    auto packet = make_unique<ESPNowPacket>(mac_address, data, len);
+    auto packet = new ESPNowPacket(mac_address, data, len);
     send_packet(packet);
   }
 
   void send_packet(const uint64_t mac_address, const std::vector<uint8_t> data) {
-    auto packet = make_unique<ESPNowPacket>(mac_address, data);
+    auto packet = ESPNowPacket(mac_address, data);
     send_packet(packet);
   }
 
@@ -103,8 +104,8 @@ class ESPNowComponent : public Component {
   CallbackManager<void(ESPNowPacket)> on_packet_send_;
   CallbackManager<void(ESPNowPacket)> on_packet_receved_;
 
-  std::queue<std::unique_ptr<ESPNowPacket>> receive_queue_;
-  std::queue<std::unique_ptr<ESPNowPacket>> send_queue_;
+  std::queue<ESPNowPacket> receive_queue_;
+  std::queue<ESPNowPacket> send_queue_;
 
   std::vector<ESPNowListener *> listeners_;
   bool can_send_{true};
