@@ -3,8 +3,8 @@ import esphome.config_validation as cv
 import esphome.codegen as cg
 from esphome.const import CONF_ID, CONF_DATA, CONF_MAC_ADDRESS, CONF_TRIGGER_ID
 
-CODEOWNERS = ["@jesserockz"]
-DEPENDENCIES = ["wifi"]
+CODEOWNERS = ["@LumenSoftNL"]
+
 
 esp_now_ns = cg.esphome_ns.namespace("esp_now")
 ESPNowComponent = esp_now_ns.class_("ESPNowComponent", cg.Component)

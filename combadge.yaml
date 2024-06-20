@@ -240,12 +240,15 @@ remote_transmitter:
   carrier_duty_percent: 50%
 
 
-combadge:
+nowtalk:
 
 text_sensor:
   - platform: template
     id: nowTalk
     name: "nowTalk"
     lambda: |-
-      return combadge::badgeIDStr();
+      return nowtalk::badgeIDStr();
     update_interval: never
+
+esphome:
+  
