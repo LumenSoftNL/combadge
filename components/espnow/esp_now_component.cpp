@@ -151,7 +151,7 @@ void ESPNowComponent::loop() {
         add_user_peer(mac_address);
       }
 
-      esp_err_t err = esp_now_send(mac_address, packet->data(), packet->data().size);
+      esp_err_t err = esp_now_send(mac_address, packet->data(), packet->data().size());
       if (err != ESP_OK) {
         this->log_error_("esp_now_init failed: %s", err);
       } else {
