@@ -137,7 +137,7 @@ void ESPNowComponent::loop() {
     auto packet = this->receive_queue_.front();
     if (packet->get_counter() > 5) {
       this->status_set_warning("to many send retries. Stop sending until new package received.");
-      pocket->reset_counter();
+      packet->reset_counter();
     } else {
       uint8_t mac_address[6];
       if (packet->mac_address() == 0) {
