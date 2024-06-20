@@ -135,9 +135,9 @@ void ESPNowComponent::on_packet_send(ESPNowPacket *packet) {
 void ESPNowComponent::loop() {
   if (!send_queue_.empty() && this->can_send_ && !this->status_has_warning()) {
     auto packet = this->receive_queue_.front();
-    if (packet->get_send_count() > 5) {
+    if (packet->get_counter() > 5) {
       this->status_set_warning("to many send retries. Stop sending until new package received.");
-      pocket->reset_send_count();
+      pocket->reset_counter();
     } else {
       uint8_t mac_address[6];
       if (packet->mac_address() == 0) {
@@ -154,7 +154,7 @@ void ESPNowComponent::loop() {
       if (err != ESP_OK) {
         this->log_error_("esp_now_init failed: %s", err);
       } else {
-        packet->inc_send_count();
+        packet->inc_counter();
         this->can_send_ = false;
       }
     }
