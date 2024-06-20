@@ -43,7 +43,7 @@ esp_err_t ESPNowComponent::add_user_peer(uint8_t *addr) {
   memcpy(peerInfo.peer_addr, addr, 6);
   return esp_now_add_peer(&peerInfo);
 }
-
+*/
 void ESPNowComponent::setup() {
   ESP_LOGCONFIG(TAG, "Setting up ESP-NOW...");
 
@@ -88,6 +88,9 @@ void ESPNowComponent::setup() {
   ESP_LOGCONFIG(TAG, "ESP-NOW setup complete");
 }
 
+void ESPNowComponent::dump_config() { ESP_LOGCONFIG(TAG, "esp_now:"); }
+
+/* * /
 void ESPNowComponent::on_packet_received(ESPNowPacket packet) {
   for (auto *listener : this->listeners_) {
     if (listener->on_packet_received(*packet)) {
@@ -143,7 +146,6 @@ void ESPNowComponent::loop() {
   }
 }
 
-void ESPNowComponent::dump_config() { ESP_LOGCONFIG(TAG, "esp_now:"); }
 
 void ESPNowComponent::on_data_received(const esp_now_recv_info_t *info, const uint8_t *data, int data_len) {
   auto packet = make_unique<ESPNowPacket>(info->src_addr, data, len);

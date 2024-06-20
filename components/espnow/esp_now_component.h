@@ -56,11 +56,13 @@ class ESPNowListener : public Parented<ESPNowComponent> {
 class ESPNowComponent : public Component {
  public:
   ESPNowComponent();
-/*
-  void setup() override;
-  void loop() override;
+
   void dump_config() override;
   float get_setup_priority() const override { return setup_priority::AFTER_CONNECTION; }
+
+  void setup() override;
+/*
+  void loop() override;
 */
   void set_wifi_channel(uint8_t channel) { this->wifi_channel_ = channel; }
 /*
