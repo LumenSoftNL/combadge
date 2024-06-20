@@ -9,7 +9,6 @@
 #include "esp_system.h"
 #endif
 
-
 #include "esp_wifi.h"
 
 #include "esphome/core/helpers.h"
@@ -24,24 +23,24 @@ static const uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 #if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 0, 1)
 typedef struct {
-    uint16_t frame_head;
-    uint16_t duration;
-    uint8_t destination_address[6];
-    uint8_t source_address[6];
-    uint8_t broadcast_address[6];
-    uint16_t sequence_control;
+  uint16_t frame_head;
+  uint16_t duration;
+  uint8_t destination_address[6];
+  uint8_t source_address[6];
+  uint8_t broadcast_address[6];
+  uint16_t sequence_control;
 
-    uint8_t category_code;
-    uint8_t organization_identifier[3]; // 0x18fe34
-    uint8_t random_values[4];
-    struct {
-        uint8_t element_id;                 // 0xdd
-        uint8_t lenght;                     //
-        uint8_t organization_identifier[3]; // 0x18fe34
-        uint8_t type;                       // 4
-        uint8_t version;
-        uint8_t body[0];
-    } vendor_specific_content;
+  uint8_t category_code;
+  uint8_t organization_identifier[3];  // 0x18fe34
+  uint8_t random_values[4];
+  struct {
+    uint8_t element_id;                  // 0xdd
+    uint8_t lenght;                      //
+    uint8_t organization_identifier[3];  // 0x18fe34
+    uint8_t type;                        // 4
+    uint8_t version;
+    uint8_t body[0];
+  } vendor_specific_content;
 } __attribute__((packed)) espnow_frame_format_t;
 #endif
 
@@ -51,17 +50,14 @@ ESPNowPacket::ESPNowPacket(const uint64_t mac_address, const std::vector<uint8_t
 }
 
 ESPNowPacket::ESPNowPacket(const uint8_t *mac_address, const uint8_t *data, int len) {
-  memcpy( &this->mac_address_ , mac_address, 6);
+  memcpy(&this->mac_address_, mac_address, 6);
   this->data_.resize(len);
   std::copy_n(data, len, this->data_.begin());
 }
 
 ESPNowComponent::ESPNowComponent() { global_esp_now = this; }
 
-void ESPNowComponent::log_error_(std::string msg, esp_err_t err) {
-   ESP_LOGE(TAG, msg.c_str(), esp_err_to_name(err));
-}
-
+void ESPNowComponent::log_error_(std::string msg, esp_err_t err) { ESP_LOGE(TAG, msg.c_str(), esp_err_to_name(err)); }
 
 esp_err_t ESPNowComponent::add_user_peer(uint8_t *addr) {
   if (esp_now_is_peer_exist(addr))
@@ -114,7 +110,6 @@ void ESPNowComponent::setup() {
 
 void ESPNowComponent::dump_config() { ESP_LOGCONFIG(TAG, "esp_now:"); }
 
-
 void ESPNowComponent::on_packet_received(ESPNowPacket packet) {
   for (auto *listener : this->listeners_) {
     if (listener->on_packet_received(*packet)) {
@@ -124,8 +119,9 @@ void ESPNowComponent::on_packet_received(ESPNowPacket packet) {
   this->on_packet_receved_.call(*packet);
 }
 
-void ESPNowComponent::send_packet(const ESPNowPacket * packet) { global_esp_now->push_send_package.push(std::move(packet)); }
-
+void ESPNowComponent::send_packet(const ESPNowPacket *packet) {
+  global_esp_now->push_send_package.push(std::move(packet));
+}
 
 void ESPNowComponent::on_packet_send(ESPNowPacket packet) {
   for (auto *listener : this->listeners_) {
@@ -168,12 +164,11 @@ void ESPNowComponent::loop() {
     std::unique_ptr<ESPNowPacket> packet = std::move(this->receive_queue_.front());
     this->receive_queue_.pop();
 
-    ESP_LOGD(TAG, "mac: %s, data: %s", hexencode(packet->mac_address(), 6).c_str(), hexencode(packet->data()).c_str());
+    //    ESP_LOGD(TAG, "mac: %s, data: %s", hexencode(packet->mac_address(), 6).c_str(),
+    //    hexencode(packet->data()).c_str());
     on_packet_received(packet);
   }
 }
-
-*/
 
 /**< callback function of receiving ESPNOW data */
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 1)
@@ -182,14 +177,15 @@ void ESPNowComponent::on_data_received((const esp_now_recv_info_t *recv_info, co
 void ESPNowComponent::on_data_received(const uint8_t *addr, const uint8_t *data, int size)
 #endif
 {
-    wifi_pkt_rx_ctrl_t *rx_ctrl = NULL;
+  wifi_pkt_rx_ctrl_t *rx_ctrl = NULL;
 
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 1)
-    uint8_t * addr = recv_info->src_addr;
-    rx_ctrl = recv_info->rx_ctrl;
+  uint8_t *addr = recv_info->src_addr;
+  rx_ctrl = recv_info->rx_ctrl;
 #else
-    wifi_promiscuous_pkt_t *promiscuous_pkt = (wifi_promiscuous_pkt_t *)(data - sizeof(wifi_pkt_rx_ctrl_t) - sizeof(espnow_frame_format_t));
-    rx_ctrl = &promiscuous_pkt->rx_ctrl;
+  wifi_promiscuous_pkt_t *promiscuous_pkt =
+      (wifi_promiscuous_pkt_t *) (data - sizeof(wifi_pkt_rx_ctrl_t) - sizeof(espnow_frame_format_t));
+  rx_ctrl = &promiscuous_pkt->rx_ctrl;
 #endif
 
   auto packet = new ESPNowPacket(addr, data, size);
