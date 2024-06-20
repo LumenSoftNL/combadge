@@ -188,7 +188,7 @@ void ESPNowComponent::on_data_send(const uint8_t *mac_addr, esp_now_send_status_
   auto packet = this->send_queue_.front();
   if (status != ESP_OK) {
     this->log_error_(TAG, "on_data_send failed: %s", status);
-  } else if (std::memcmp(packet->get_bssid().data(), mac_addr, 6) != 0) {
+  } else if (std::memcmp(&packet->mac_address(), mac_addr, 6) != 0) {
     this->log_error_(TAG, "Invalid mac address: %s", status);
   } else {
     on_packet_send(packet);
