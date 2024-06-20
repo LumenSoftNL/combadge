@@ -36,10 +36,10 @@ ESPNowPacket::ESPNowPacket(const uint8_t *mac_address, const uint8_t *data, int 
 ESPNowComponent::ESPNowComponent() { global_esp_now = this; }
 
 void ESPNowComponent::log_error_(std::string msg, esp_err_t err) {
-   ESP_LOGE(TAG, msg, esp_err_to_name(err));
+   ESP_LOGE(TAG, msg.c_str(), esp_err_to_name(err));
 }
 
-/*
+
 esp_err_t ESPNowComponent::add_user_peer(uint8_t *addr) {
   if (esp_now_is_peer_exist(addr))
     esp_now_del_peer(addr);
@@ -50,7 +50,7 @@ esp_err_t ESPNowComponent::add_user_peer(uint8_t *addr) {
   memcpy(peerInfo.peer_addr, addr, 6);
   return esp_now_add_peer(&peerInfo);
 }
-*/
+
 void ESPNowComponent::setup() {
   ESP_LOGCONFIG(TAG, "Setting up ESP-NOW...");
 
