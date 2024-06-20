@@ -58,9 +58,9 @@ class ESPNowComponent : public Component {
   ESPNowComponent();
 
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 1)
-  static void ESPNowComponent::on_data_received((const esp_now_recv_info_t *recv_info, const uint8_t *data, int size);
+  static void on_data_received((const esp_now_recv_info_t *recv_info, const uint8_t *data, int size);
 #else
-  static void ESPNowComponent::on_data_received(const uint8_t *addr, const uint8_t *data, int size);
+  static void on_data_received(const uint8_t *addr, const uint8_t *data, int size);
 #endif
   static void on_data_send(const uint8_t *mac_addr, esp_now_send_status_t status);
 
@@ -85,7 +85,7 @@ class ESPNowComponent : public Component {
 
   void send_packet(const ESPNowPacket * packet) { global_esp_now->push_send_package.push(std::move(packet)); }
 
-/*
+
   void add_on_packet_send_callback(std::function<void(ESPNowPacket)> &&callback) {
     this->on_packet_send_.add(std::move(callback));
   }
@@ -93,7 +93,7 @@ class ESPNowComponent : public Component {
   void add_on_packet_receive_callback(std::function<void(ESPNowPacket)> &&callback) {
     this->on_packet_receved_.add(std::move(callback));
   }
-
+/*
   void register_listener(ESPNowListener *listener) {
     listener->set_parent(this);
     this->listeners_.push_back(listener);
