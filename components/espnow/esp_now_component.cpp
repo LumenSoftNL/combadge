@@ -15,10 +15,9 @@ namespace esp_now {
 static const char *const TAG = "esp_now";
 static const uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
-ESPNowPacket::ESPNowPacket(uint64_t mac_address, const uint8_t *data, int len) {
+ESPNowPacket::ESPNowPacket(uint64_t mac_address, std::vector<uint8_t> data) {
   this->mac_address_ = mac_address;
-  this->data_.resize(len);
-  std::copy_n(data, len, this->data_.begin());
+  std::copy(data.begin(), this->data_.begin());
 }
 
 ESPNowPacket::ESPNowPacket(uint8_t *mac_address, const uint8_t *data, int len) {
