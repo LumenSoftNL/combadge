@@ -61,9 +61,9 @@ class ESPNowComponent : public Component {
   void loop() override;
   void dump_config() override;
   float get_setup_priority() const override { return setup_priority::AFTER_CONNECTION; }
-
+*/
   void set_wifi_channel(uint8_t channel) { this->wifi_channel_ = channel; }
-
+/*
   void send_packet(const uint8_t *mac_address, const uint8_t *data, int len) {
     auto packet = new ESPNowPacket(mac_address, data, len);
     send_packet(packet);
