@@ -69,11 +69,11 @@ class ESPNowComponent : public Component {
   }
 
   void send_packet(const uint64_t mac_address, const std::vector<uint8_t> data) {
-    auto packet = ESPNowPacket(mac_address, data);
+    auto packet = new ESPNowPacket(mac_address, data);
     send_packet(packet);
   }
 
-  void send_packet(const ESPNowPacket packet) { global_esp_now->send_queue_.push(std::move(packet)); }
+  void send_packet(const ESPNowPacket * packet) { global_esp_now->send_queue_.push(std::move(packet)); }
 
   static void on_data_received(const esp_now_recv_info_t *esp_now_info, const uint8_t *data, int data_len);
   static void on_data_send(const uint8_t *mac_addr, esp_now_send_status_t status);
