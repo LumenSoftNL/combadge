@@ -113,9 +113,10 @@ class ESPNowComponent : public Component {
   void push_send_packet(ESPNowPacket* packet) {
     this->send_queue_.push(std::move(packet));
   }
-
- protected:
   void log_error_(std::string msg, esp_err_t err);
+  
+ protected:
+
 
   uint8_t wifi_channel_;
 
