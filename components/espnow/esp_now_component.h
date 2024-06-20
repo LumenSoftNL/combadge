@@ -49,21 +49,7 @@ class ESPNowPacket {
 class ESPNowListener : public Parented<ESPNowComponent> {
  public:
   virtual bool on_packet_received(ESPNowPacket packet) = 0;
-  virtual bool on_packet_send(ESPNowPacket packet) {};
-};
-
-class ESPNowSendTrigger : public Trigger<ESPNowPacket> {
- public:
-  explicit ESPNowSendTrigger(ESPNowComponent *parent) {
-    parent->add_on_packet_send_callback([this](ESPNowPacket value) { this->trigger(value); });
-  }
-};
-
-class ESPNowReceiveTrigger : public Trigger<ESPNowPacket> {
- public:
-  explicit ESPNowReceiveTrigger(ESPNowComponent *parent) {
-    parent->add_on_packet_receive_callback([this](ESPNowPacket value) { this->trigger(value); });
-  }
+  virtual bool on_packet_send(ESPNowPacket packet) { return false; };
 };
 
 class ESPNowComponent : public Component {
@@ -158,6 +144,23 @@ template<typename... Ts> class SendAction : public Action<Ts...>, public Parente
   std::function<std::vector<uint8_t>(Ts...)> data_func_{};
   std::vector<uint8_t> data_{};
 };
+
+
+class ESPNowSendTrigger : public Trigger<ESPNowPacket> {
+ public:
+  explicit ESPNowSendTrigger(ESPNowComponent *parent) {
+    parent->add_on_packet_send_callback([this](ESPNowPacket value) { this->trigger(value); });
+  }
+};
+
+class ESPNowReceiveTrigger : public Trigger<ESPNowPacket> {
+ public:
+  explicit ESPNowReceiveTrigger(ESPNowComponent *parent) {
+    parent->add_on_packet_receive_callback([this](ESPNowPacket value) { this->trigger(value); });
+  }
+};
+
+
 
 extern ESPNowComponent *global_esp_now;
 
