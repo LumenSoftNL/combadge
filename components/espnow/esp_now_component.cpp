@@ -86,12 +86,6 @@ void ESPNowComponent::setup() {
     return;
   }
 
-  err = create_broatcast_peer();
-  if (err != ESP_OK) {
-    this->mark_failed();
-    this->log_error_("Failed to add peer: %s", err);
-  }
-
   ESP_LOGCONFIG(TAG, "ESP-NOW setup complete");
 }
 
@@ -172,14 +166,14 @@ void ESPNowComponent::on_data_received(const uint8_t *addr, const uint8_t *data,
     rx_ctrl = &promiscuous_pkt->rx_ctrl;
 #endif
 
-  auto packet = new ESPNowPacket(info->src_addr, data, len);
+  auto packet = new ESPNowPacket(addr, data, size);
 
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 1)
   packet->is_broadcast(memcmp(recv_info->des_addr, ESP_NOW.BROADCAST_ADDR, ESP_NOW_ETH_ALEN) == 0);
 #endif
 
-  pocket->rssi(rx_ctrl->rssi);
-  pocket->timestamp(rx_ctrl->timestamp);
+  packet->rssi(rx_ctrl->rssi);
+  packet->timestamp(rx_ctrl->timestamp);
 
   global_esp_now->receive_queue_.push(std::move(packet));
 }

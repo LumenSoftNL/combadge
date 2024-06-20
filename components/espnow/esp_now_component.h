@@ -58,9 +58,9 @@ class ESPNowComponent : public Component {
   ESPNowComponent();
 
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 1)
-  void ESPNowComponent::on_data_received((const esp_now_recv_info_t *recv_info, const uint8_t *data, int size);
+  static void ESPNowComponent::on_data_received((const esp_now_recv_info_t *recv_info, const uint8_t *data, int size);
 #else
-  void ESPNowComponent::on_data_received(const uint8_t *addr, const uint8_t *data, int size);
+  static void ESPNowComponent::on_data_received(const uint8_t *addr, const uint8_t *data, int size);
 #endif
   static void on_data_send(const uint8_t *mac_addr, esp_now_send_status_t status);
 
@@ -100,7 +100,7 @@ class ESPNowComponent : public Component {
   }
 */
   virtual esp_err_t add_user_peer(uint8_t *addr);
-/* 
+/*
   virtual void on_packet_received(ESPNowPacket packet);
   virtual void on_packet_send(ESPNowPacket packet);
 */
