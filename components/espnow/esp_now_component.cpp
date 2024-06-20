@@ -143,7 +143,7 @@ void ESPNowComponent::loop() {
       if (packet->mac_address() == 0) {
         memcpy(mac_address, broadcastAddress, 6);
       } else {
-        memcpy(mac_address, packet->mac_address(), 6);
+        memcpy(mac_address, @packet->mac_address(), 6);
       }
 
       if (!esp_now_is_peer_exist(mac_address)) {
