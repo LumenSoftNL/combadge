@@ -17,13 +17,14 @@ static const uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 ESPNowPacket::ESPNowPacket(const uint64_t mac_address, const std::vector<uint8_t> data) {
   this->mac_address_ = mac_address;
- // std::copy(data, this->data_);
+  this->data_.resize(data.size);
+  std::copy_n(data.data(), data.size, this->data_.begin());
 }
 
 ESPNowPacket::ESPNowPacket(const uint8_t *mac_address, const uint8_t *data, int len) {
- // std::copy_n(mac_address, ESP_NOW_ETH_ALEN, this->mac_address_);
+  memcpy(this->mac_address_ , mac_address, 6);
   this->data_.resize(len);
- // std::copy_n(data, len, this->data_.begin());
+  std::copy_n(data, len, this->data_.begin());
 }
 
 ESPNowComponent::ESPNowComponent() { global_esp_now = this; }
