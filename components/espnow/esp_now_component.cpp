@@ -12,6 +12,18 @@ namespace esp_now {
 static const char *const TAG = "esp_now";
 static const uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
+ESPNowPacket::ESPNowPacket(uint64_t mac_address, const uint8_t *data, int len) {
+  this->mac_address_ = mac_address;
+  this->data_.resize(len);
+  std::copy_n(data, len, this->data_.begin());
+}
+
+ESPNowPacket::ESPNowPacket(uint8_t *mac_address, const uint8_t *data, int len) {
+  std::copy_n(mac_address, ESP_NOW_ETH_ALEN, this->mac_address_);
+  this->data_.resize(len);
+  std::copy_n(data, len, this->data_.begin());
+}
+
 ESPNowComponent::ESPNowComponent() { global_esp_now = this; }
 
 void ESPNowComponent::log_error_(char *msg, esp_err_t err) { ESP_LOGE(TAG, msg, esp_err_to_name(err)); }
@@ -80,21 +92,21 @@ void ESPNowComponent::setup() {
 }
 
 void ESPNowComponent::on_packet_received(ESPNowPacket packet) {
-    for (auto *listener : this->listeners_) {
-      if (listener->on_packet_received(*packet)) {
-        break;
-      }
+  for (auto *listener : this->listeners_) {
+    if (listener->on_packet_received(*packet)) {
+      break;
     }
-    this->on_packet_receved_.call(*packet);
+  }
+  this->on_packet_receved_.call(*packet);
 }
 
 void ESPNowComponent::on_packet_send(ESPNowPacket packet) {
-    for (auto *listener : this->listeners_) {
-      if (listener->on_packet_send(*packet)) {
-        break;
-      }
+  for (auto *listener : this->listeners_) {
+    if (listener->on_packet_send(*packet)) {
+      break;
     }
-    this->on_packet_send_.call(*packet);
+  }
+  this->on_packet_send_.call(*packet);
 }
 
 void ESPNowComponent::loop() {
@@ -111,7 +123,7 @@ void ESPNowComponent::loop() {
         memcpy(mac_address, packet->mac_address(), 6);
       }
 
-      if (!esp_now_is_peer_exist(mac_address)){
+      if (!esp_now_is_peer_exist(mac_address)) {
         add_user_peer(mac_address);
       }
 
@@ -131,7 +143,6 @@ void ESPNowComponent::loop() {
 
     ESP_LOGD(TAG, "mac: %s, data: %s", hexencode(packet->mac_address(), 6).c_str(), hexencode(packet->data()).c_str());
     on_packet_received(packet);
-
   }
 }
 
