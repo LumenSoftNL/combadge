@@ -28,8 +28,8 @@ class ESPNowPacket {
   void inc_counter() { send_count_ = send_count_ + 1; }
   void reset_counter() { send_count_ = 0; }
 
-  void broadcast(bool value) { this->broadcast_ = value; }
-  bool broadcast() const { return this->broadcast_; }
+  void is_broadcast(bool value) { this->is_broadcast_ = value; }
+  bool is_broadcast() const { return this->is_broadcast_; }
 
   void timestamp(uint32_t value) { this->timestamp_ = value; }
   uint32_t timestamp() { return this->timestamp_; }
@@ -42,7 +42,7 @@ class ESPNowPacket {
   std::vector<uint8_t> data_;
 
   uint8_t send_count_{0};
-  bool broadcast_{false};
+  bool is_broadcast_{false};
   uint32_t timestamp_{0};
   uint8_t rssi_{0};
 };
@@ -56,6 +56,9 @@ class ESPNowListener : public Parented<ESPNowComponent> {
 class ESPNowComponent : public Component {
  public:
   ESPNowComponent();
+
+  static void on_data_received(const esp_now_recv_info_t *esp_now_info, const uint8_t *data, int data_len);
+  static void on_data_send(const uint8_t *mac_addr, esp_now_send_status_t status);
 
   void dump_config() override;
   float get_setup_priority() const override { return setup_priority::AFTER_CONNECTION; }
@@ -78,8 +81,6 @@ class ESPNowComponent : public Component {
 
   void send_packet(const ESPNowPacket * packet) { global_esp_now->send_queue_.push(std::move(packet)); }
 
-  static void on_data_received(const esp_now_recv_info_t *esp_now_info, const uint8_t *data, int data_len);
-  static void on_data_send(const uint8_t *mac_addr, esp_now_send_status_t status);
 
   void add_on_packet_send_callback(std::function<void(ESPNowPacket)> &&callback) {
     this->on_packet_send_.add(std::move(callback));
