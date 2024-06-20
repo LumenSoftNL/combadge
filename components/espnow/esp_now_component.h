@@ -56,6 +56,7 @@ class ESPNowListener : public Parented<ESPNowComponent> {
 class ESPNowComponent : public Component {
  public:
   ESPNowComponent();
+/*
   void setup() override;
   void loop() override;
   void dump_config() override;
@@ -95,10 +96,10 @@ class ESPNowComponent : public Component {
 
   virtual void on_packet_received(ESPNowPacket packet);
   virtual void on_packet_send(ESPNowPacket packet);
-
+*/
  protected:
   void log_error_(char *msg, esp_err_t err);
-  esp_err_t create_broatcast_peer();
+
   uint8_t wifi_channel_;
 
   CallbackManager<void(ESPNowPacket)> on_packet_send_;
@@ -117,7 +118,7 @@ template<typename... Ts> class SendAction : public Action<Ts...>, public Parente
     this->data_func_ = func;
     this->is_templated_data_ = true;
   }
-  void set_data_static(std::vector<uint8_t> data) { this->data_static_ = data; }
+  void set_data(std::vector<uint8_t> data) { this->data_static_ = data; }
 
   void set_mac_address_template(std::function<uint64_t(Ts...)> func) {
     this->bssid_func_ = func;
@@ -133,7 +134,7 @@ template<typename... Ts> class SendAction : public Action<Ts...>, public Parente
     if (this->is_templated_data_) {
       data_ = this->data_func_(x...);
     }
-    this->parent_->send_packet(mac_address_, data_);
+//    this->parent_->send_packet(mac_address_, data_);
   }
 
  protected:
@@ -149,14 +150,14 @@ template<typename... Ts> class SendAction : public Action<Ts...>, public Parente
 class ESPNowSendTrigger : public Trigger<ESPNowPacket> {
  public:
   explicit ESPNowSendTrigger(ESPNowComponent *parent) {
-    parent->add_on_packet_send_callback([this](ESPNowPacket value) { this->trigger(value); });
+//    parent->add_on_packet_send_callback([this](ESPNowPacket value) { this->trigger(value); });
   }
 };
 
 class ESPNowReceiveTrigger : public Trigger<ESPNowPacket> {
  public:
   explicit ESPNowReceiveTrigger(ESPNowComponent *parent) {
-    parent->add_on_packet_receive_callback([this](ESPNowPacket value) { this->trigger(value); });
+//    parent->add_on_packet_receive_callback([this](ESPNowPacket value) { this->trigger(value); });
   }
 };
 

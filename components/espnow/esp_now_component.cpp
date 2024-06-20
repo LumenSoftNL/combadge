@@ -29,7 +29,7 @@ ESPNowPacket::ESPNowPacket(uint8_t *mac_address, const uint8_t *data, int len) {
 ESPNowComponent::ESPNowComponent() { global_esp_now = this; }
 
 void ESPNowComponent::log_error_(char *msg, esp_err_t err) { ESP_LOGE(TAG, msg, esp_err_to_name(err)); }
-
+/*
 esp_err_t ESPNowComponent::add_user_peer(uint8_t *addr) {
   if (esp_now_is_peer_exist(addr))
     esp_now_del_peer(addr);
@@ -166,6 +166,7 @@ void ESPNowComponent::on_data_send(const uint8_t *mac_addr, esp_now_send_status_
 
   this->can_send_ = true;
 }
+*/
 
 ESPNowComponent *global_esp_now = nullptr;
 
