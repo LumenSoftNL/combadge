@@ -149,7 +149,7 @@ void ESPNowComponent::loop() {
 */
 
 void ESPNowComponent::on_data_received(const esp_now_recv_info_t *info, const uint8_t *data, int data_len) {
-  auto packet = make_unique<ESPNowPacket>(info->src_addr, data, len);
+  auto packet = new ESPNowPacket(info->src_addr, data, len);
 
   packet->is_broadcast(memcmp(info->des_addr, ESP_NOW.BROADCAST_ADDR, ESP_NOW_ETH_ALEN) == 0);
   pocket->rssi(info->rssi);
@@ -167,7 +167,7 @@ void ESPNowComponent::on_data_send(const uint8_t *mac_addr, esp_now_send_status_
   } else {
     on_packet_send(packet);
 
-    this->receive_queue_.pop();
+    global_esp_now->send_queue_.pop();
   }
 
   this->can_send_ = true;
