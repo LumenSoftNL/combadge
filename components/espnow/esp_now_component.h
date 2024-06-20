@@ -85,7 +85,7 @@ class ESPNowComponent : public Component {
     send_packet(packet);
   }
 
-  void send_packet(const ESPNowPacket * packet);
+  void send_packet(ESPNowPacket * packet);
 
 
   void add_on_packet_send_callback(std::function<void(ESPNowPacket*)> &&callback) {
@@ -114,7 +114,7 @@ class ESPNowComponent : public Component {
     this->send_queue_.push(std::move(packet));
   }
   void log_error_(std::string msg, esp_err_t err);
-  
+
  protected:
 
 

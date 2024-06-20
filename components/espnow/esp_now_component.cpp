@@ -119,7 +119,7 @@ void ESPNowComponent::on_packet_received(ESPNowPacket *packet) {
   this->on_packet_receved_.call(packet);
 }
 
-void ESPNowComponent::send_packet(const ESPNowPacket *packet) {
+void ESPNowComponent::send_packet(ESPNowPacket *packet) {
   global_esp_now->push_send_packet(packet);
 }
 
