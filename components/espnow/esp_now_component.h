@@ -37,7 +37,7 @@ class ESPNowPacket {
   int8_t rssi() { return this->rssi_; }
 
  protected:
-  uint64_t mac_address_;
+  uint64_t mac_address_{0};
   std::vector<uint8_t> data_;
 
   uint8_t send_count_{0};
@@ -62,12 +62,12 @@ class ESPNowComponent : public Component {
 
   void set_wifi_channel(uint8_t channel) { this->wifi_channel_ = channel; }
 
-  void send_packet(const uint8_t *bssid, const uint8_t *data, int len) {
+  void send_packet(const uint8_t *mac_address, const uint8_t *data, int len) {
     auto packet = make_unique<ESPNowPacket>(mac_address, data, len);
     send_packet(packet);
   }
 
-  void send_packet(const uint64_t mac_addr, const std::vector<uint8_t> data) {
+  void send_packet(const uint64_t mac_address, const std::vector<uint8_t> data) {
     auto packet = make_unique<ESPNowPacket>(mac_address, data);
     send_packet(packet);
   }
@@ -90,8 +90,8 @@ class ESPNowComponent : public Component {
     this->listeners_.push_back(listener);
   }
 
-  esp_err_t create_broatcast_peer();
   virtual esp_err_t add_user_peer(uint8_t *addr);
+
   virtual void on_packet_received(ESPNowPacket packet);
   virtual void on_packet_send(ESPNowPacket packet);
 
@@ -138,13 +138,12 @@ template<typename... Ts> class SendAction : public Action<Ts...>, public Parente
  protected:
   bool is_templated_mac_address_{false};
   std::function<uint64_t(Ts...)> mac_address_func_{};
-  uint64_t mac_address_ { 0 }
+  uint64_t mac_address_{0};
 
   bool is_templated_data_{false};
   std::function<std::vector<uint8_t>(Ts...)> data_func_{};
   std::vector<uint8_t> data_{};
 };
-
 
 class ESPNowSendTrigger : public Trigger<ESPNowPacket> {
  public:
@@ -159,8 +158,6 @@ class ESPNowReceiveTrigger : public Trigger<ESPNowPacket> {
     parent->add_on_packet_receive_callback([this](ESPNowPacket value) { this->trigger(value); });
   }
 };
-
-
 
 extern ESPNowComponent *global_esp_now;
 

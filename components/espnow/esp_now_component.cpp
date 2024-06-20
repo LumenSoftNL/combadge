@@ -28,14 +28,6 @@ ESPNowComponent::ESPNowComponent() { global_esp_now = this; }
 
 void ESPNowComponent::log_error_(char *msg, esp_err_t err) { ESP_LOGE(TAG, msg, esp_err_to_name(err)); }
 
-esp_err_t ESPNowComponent::create_broatcast_peer() {
-  esp_now_peer_info_t peerInfo = {};
-  memcpy(peerInfo.peer_addr, broadcastAddress, 6);
-  peerInfo.channel = this->wifi_channel_;
-  peerInfo.encrypt = false;
-  return esp_now_add_peer(&peerInfo);
-}
-
 esp_err_t ESPNowComponent::add_user_peer(uint8_t *addr) {
   if (esp_now_is_peer_exist(addr))
     esp_now_del_peer(addr);
