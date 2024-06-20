@@ -2,7 +2,7 @@
 
 #include <string.h>
 #include "esp_system.h"
-#include "esp32-hal.h"
+
 #include "esp_wifi.h"
 
 #include "esphome/core/helpers.h"
