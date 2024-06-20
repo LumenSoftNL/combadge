@@ -49,8 +49,8 @@ class ESPNowPacket {
 
 class ESPNowListener : public Parented<ESPNowComponent> {
  public:
-  virtual bool on_packet_received(ESPNowPacket packet) = 0;
-  virtual bool on_packet_send(ESPNowPacket packet) { return false; };
+  virtual bool on_packet_received(ESPNowPacket *packet) = 0;
+  virtual bool on_packet_send(ESPNowPacket *packet) { return false; };
 };
 
 class ESPNowComponent : public Component {
@@ -88,11 +88,11 @@ class ESPNowComponent : public Component {
   void send_packet(const ESPNowPacket * packet);
 
 
-  void add_on_packet_send_callback(std::function<void(ESPNowPacket)> &&callback) {
+  void add_on_packet_send_callback(std::function<void(ESPNowPacket*)> &&callback) {
     this->on_packet_send_.add(std::move(callback));
   }
 
-  void add_on_packet_receive_callback(std::function<void(ESPNowPacket)> &&callback) {
+  void add_on_packet_receive_callback(std::function<void(ESPNowPacket*)> &&callback) {
     this->on_packet_receved_.add(std::move(callback));
   }
 
@@ -103,14 +103,14 @@ class ESPNowComponent : public Component {
 
   virtual esp_err_t add_user_peer(uint8_t *addr);
 
-  virtual void on_packet_received(ESPNowPacket packet);
-  virtual void on_packet_send(ESPNowPacket packet);
+  virtual void on_packet_received(ESPNowPacket* packet);
+  virtual void on_packet_send(ESPNowPacket* packet);
 
-  void push_receive_packet(ESPNowPacket packet) {
+  void push_receive_packet(ESPNowPacket* packet) {
     this->receive_queue_.push(std::move(packet));
   }
 
-  void push_send_packet(ESPNowPacket packet) {
+  void push_send_packet(ESPNowPacket* packet) {
     this->send_queue_.push(std::move(packet));
   }
 
@@ -119,11 +119,11 @@ class ESPNowComponent : public Component {
 
   uint8_t wifi_channel_;
 
-  CallbackManager<void(ESPNowPacket)> on_packet_send_;
-  CallbackManager<void(ESPNowPacket)> on_packet_receved_;
+  CallbackManager<void(ESPNowPacket*)> on_packet_send_;
+  CallbackManager<void(ESPNowPacket*)> on_packet_receved_;
 
-  std::queue<ESPNowPacket> receive_queue_;
-  std::queue<ESPNowPacket> send_queue_;
+  std::queue<ESPNowPacket*> receive_queue_;
+  std::queue<ESPNowPacket*> send_queue_;
 
   std::vector<ESPNowListener *> listeners_;
   bool can_send_{true};
@@ -164,17 +164,17 @@ template<typename... Ts> class SendAction : public Action<Ts...>, public Parente
   std::vector<uint8_t> data_{};
 };
 
-class ESPNowSendTrigger : public Trigger<ESPNowPacket> {
+class ESPNowSendTrigger : public Trigger<ESPNowPacket *> {
  public:
   explicit ESPNowSendTrigger(ESPNowComponent *parent) {
-    //    parent->add_on_packet_send_callback([this](ESPNowPacket value) { this->trigger(value); });
+    parent->add_on_packet_send_callback([this](ESPNowPacket *value) { this->trigger(value); });
   }
 };
 
-class ESPNowReceiveTrigger : public Trigger<ESPNowPacket> {
+class ESPNowReceiveTrigger : public Trigger<ESPNowPacket *> {
  public:
   explicit ESPNowReceiveTrigger(ESPNowComponent *parent) {
-    //    parent->add_on_packet_receive_callback([this](ESPNowPacket value) { this->trigger(value); });
+    parent->add_on_packet_receive_callback([this](ESPNowPacket *value) { this->trigger(value); });
   }
 };
 

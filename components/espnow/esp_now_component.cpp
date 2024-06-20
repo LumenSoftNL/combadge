@@ -110,26 +110,26 @@ void ESPNowComponent::setup() {
 
 void ESPNowComponent::dump_config() { ESP_LOGCONFIG(TAG, "esp_now:"); }
 
-void ESPNowComponent::on_packet_received(ESPNowPacket packet) {
+void ESPNowComponent::on_packet_received(ESPNowPacket *packet) {
   for (auto *listener : this->listeners_) {
-    if (listener->on_packet_received(*packet)) {
+    if (listener->on_packet_received(packet)) {
       break;
     }
   }
-  this->on_packet_receved_.call(*packet);
+  this->on_packet_receved_.call(packet);
 }
 
 void ESPNowComponent::send_packet(const ESPNowPacket *packet) {
   global_esp_now->push_send_package.push(std::move(packet));
 }
 
-void ESPNowComponent::on_packet_send(ESPNowPacket packet) {
+void ESPNowComponent::on_packet_send(ESPNowPacket *packet) {
   for (auto *listener : this->listeners_) {
-    if (listener->on_packet_send(*packet)) {
+    if (listener->on_packet_send(packet)) {
       break;
     }
   }
-  this->on_packet_send_.call(*packet);
+  this->on_packet_send_.call(packet);
 }
 
 void ESPNowComponent::loop() {
@@ -161,7 +161,7 @@ void ESPNowComponent::loop() {
   }
 
   while (!receive_queue_.empty()) {
-    std::unique_ptr<ESPNowPacket> packet = std::move(this->receive_queue_.front());
+    ESPNowPacket *packet = std::move(this->receive_queue_.front());
     this->receive_queue_.pop();
 
     //    ESP_LOGD(TAG, "mac: %s, data: %s", hexencode(packet->mac_address(), 6).c_str(),
