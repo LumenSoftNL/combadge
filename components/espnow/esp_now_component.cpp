@@ -1,7 +1,14 @@
 #include "esp_now_component.h"
 
 #include <string.h>
+
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 4, 0)
+#include "esp_mac.h"
+#include "esp_random.h"
+#else
 #include "esp_system.h"
+#endif
+
 
 #include "esp_wifi.h"
 
@@ -148,12 +155,31 @@ void ESPNowComponent::loop() {
 
 */
 
-void ESPNowComponent::on_data_received(const esp_now_recv_info_t *info, const uint8_t *data, int data_len) {
+/**< callback function of receiving ESPNOW data */
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 1)
+void ESPNowComponent::on_data_received((const esp_now_recv_info_t *recv_info, const uint8_t *data, int size)
+#else
+void ESPNowComponent::on_data_received(const uint8_t *addr, const uint8_t *data, int size)
+#endif
+{
+    wifi_pkt_rx_ctrl_t *rx_ctrl = NULL;
+
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 1)
+    uint8_t * addr = recv_info->src_addr;
+    rx_ctrl = recv_info->rx_ctrl;
+#else
+    wifi_promiscuous_pkt_t *promiscuous_pkt = (wifi_promiscuous_pkt_t *)(data - sizeof(wifi_pkt_rx_ctrl_t) - sizeof(espnow_frame_format_t));
+    rx_ctrl = &promiscuous_pkt->rx_ctrl;
+#endif
+
   auto packet = new ESPNowPacket(info->src_addr, data, len);
 
-  packet->is_broadcast(memcmp(info->des_addr, ESP_NOW.BROADCAST_ADDR, ESP_NOW_ETH_ALEN) == 0);
-  pocket->rssi(info->rssi);
-  pocket->timestamp(info->timestamp);
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 1)
+  packet->is_broadcast(memcmp(recv_info->des_addr, ESP_NOW.BROADCAST_ADDR, ESP_NOW_ETH_ALEN) == 0);
+#endif
+
+  pocket->rssi(rx_ctrl->rssi);
+  pocket->timestamp(rx_ctrl->timestamp);
 
   global_esp_now->receive_queue_.push(std::move(packet));
 }
