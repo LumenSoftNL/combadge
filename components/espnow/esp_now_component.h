@@ -101,7 +101,7 @@ class ESPNowComponent : public Component {
   virtual void on_packet_send(ESPNowPacket packet);
 */
  protected:
-  void log_error_(char *msg, esp_err_t err);
+  void log_error_(std::string msg, esp_err_t err);
 
   uint8_t wifi_channel_;
 
