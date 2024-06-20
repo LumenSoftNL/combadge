@@ -21,7 +21,7 @@ ESPNowPacket::ESPNowPacket(const uint64_t mac_address, const std::vector<uint8_t
 }
 
 ESPNowPacket::ESPNowPacket(const uint8_t *mac_address, const uint8_t *data, int len) {
-  memcpy(this->mac_address_ , mac_address, 6);
+  memcpy((void *) this->mac_address_ , mac_address, 6);
   this->data_.resize(len);
   std::copy_n(data, len, this->data_.begin());
 }
