@@ -5,58 +5,76 @@ from esphome.const import CONF_ID, CONF_DATA, CONF_MAC_ADDRESS, CONF_TRIGGER_ID
 
 CODEOWNERS = ["@LumenSoftNL"]
 
+IS_PLATFORM_COMPONENT = True
 
-esp_now_ns = cg.esphome_ns.namespace("esp_now")
-ESPNowComponent = esp_now_ns.class_("ESPNowComponent", cg.Component)
+espnow_ns = cg.esphome_ns.namespace("esp_now")
+ESPNowComponent = espnow_ns.class_("ESPNowComponent", cg.Component)
+ESPNowListener = espnow_ns.class_("ESPNowListener")
 
-ESPNowPacket = esp_now_ns.class_("ESPNowPacket")
+ESPNowPackage = espnow_ns.class_("ESPNowPackage")
 
-ESPNowSendTrigger = esp_now_ns.class_("ESPNowSendTrigger", automation.Trigger.template())
-ESPNowReceiveTrigger = esp_now_ns.class_("ESPNowReceiveTrigger", automation.Trigger.template())
+ESPNowSendTrigger = espnow_ns.class_("ESPNowSendTrigger", automation.Trigger.template())
+ESPNowReceiveTrigger = espnow_ns.class_("ESPNowReceiveTrigger", automation.Trigger.template())
 
-SendAction = esp_now_ns.class_(
-    "SendAction", automation.Action, cg.Parented.template(ESPNowComponent)
+SendAction = espnow_ns.class_(
+    "SendAction", automation.Action
+)
+NewPeerAction = espnow_ns.class_(
+    "NewPeerAction", automation.Action
+)
+DelPeerAction = espnow_ns.class_(
+    "DelPeerAction", automation.Action
 )
 
-CONF_ESP_NOW = "esp_now"
-CONF_ON_PACKET_RECEIVED = "on_packet_received"
-CONF_ON_PACKET_SEND = "on_packet_send"
-
+CONF_ESPNOW = "espnow"
+CONF_ON_PACKAGE_RECEIVED = "on_package_received"
+CONF_ON_PACKAGE_SEND = "on_package_send"
+CONF_ON_NEW_PEER = "on_new_peer"
 CONF_CHANNEL = "wifi_channel"
+CONF_PEERS = "peers"
+CONF_AUTO = "auto"
 
-CONFIG_SCHEMA = cv.Schema(
+
+ESPNOW_SCHEMA = cv.Schema(
     {
-        cv.GenerateID(): cv.declare_id(ESPNowComponent),
-        cv.Optional(CONF_CHANNEL, default=1): cv.int_range(1, 14),
-        cv.Optional(CONF_ON_PACKET_RECEIVED): automation.validate_automation(
+        cv.Optional(CONF_CHANNEL, default=0): cv.int_range(0, 14),
+        cv.Optional(CONF_ON_PACKAGE_RECEIVED): automation.validate_automation(
             {
                 cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(ESPNowReceiveTrigger),
             }
         ),
-        cv.Optional(CONF_ON_PACKET_SEND): automation.validate_automation(
+        cv.Optional(CONF_ON_PACKAGE_SEND): automation.validate_automation(
             {
                 cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(ESPNowSendTrigger),
             }
         ),
-
+        cv.Optional(CONF_ON_NEW_PEER, default=False): cv.templatable(cv.boolean),
+        cv.Optional(CONF_PEERS): cv.ensure_list(
+            cv.mac_address
+        )
     }
 ).extend(cv.COMPONENT_SCHEMA)
 
 
-async def to_code(config):
-    var = cg.new_Pvariable(config[CONF_ID])
+async def register_espnow(var, config):
+
     await cg.register_component(var, config)
     cg.add(var.set_wifi_channel(config[CONF_CHANNEL]))
 
     cg.add_define("USE_ESPNOW")
 
-    for conf in config.get(CONF_ON_PACKET_SEND, []):
+    for conf in config.get(CONF_ON_PACKAGE_SEND, []):
         trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
-        await automation.build_automation(trigger, [(ESPNowPacket, "packet")], conf)
+        await automation.build_automation(trigger, [(ESPNowPackage, "it")], conf)
 
-    for conf in config.get(CONF_ON_PACKET_RECEIVED, []):
+    for conf in config.get(CONF_ON_PACKAGE_RECEIVED, []):
         trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
-        await automation.build_automation(trigger, [(ESPNowPacket, "packet")], conf)
+        await automation.build_automation(trigger, [(ESPNowPackage, "it")], conf)
+    for conf in config.get(CONF_PEERS, []):
+        cg.add(var.add_set_wifi_channel(config[CONF_CHANNEL]))
+
+
+
 
 
 @automation.register_action(
@@ -71,21 +89,51 @@ async def to_code(config):
         key=CONF_DATA,
     ),
 )
-async def speaker_play_action(config, action_id, template_arg, args):
+async def send_action(config, action_id, template_arg, args):
     var = cg.new_Pvariable(action_id, template_arg)
     await cg.register_parented(var, config[CONF_ID])
     if CONF_MAC_ADDRESS in config:
-        mac_address = config[CONF_MAC_ADDRESS].as_hex
-        if cg.is_template(mac_address):
-            templ = await cg.templatable(mac_address, args, cg.uint64)
-            cg.add(var.set_mac_address_template(templ))
-        else:
-            cg.add(var.set_mac_address(mac_address))
+        template_ = await cg.templatable(config[CONF_MAC_ADDRESS].as_hex, args, cg.uint64)
+        cg.add(var.set_mac_address(template_))
 
-    data = config[CONF_DATA]
-    if cg.is_template(data):
-        templ = await cg.templatable(data, args, cg.std_vector.template(cg.uint8))
-        cg.add(var.set_data_template(templ))
-    else:
-        cg.add(var.set_data(data))
+    templ = await cg.templatable(config[CONF_DATA], args, cg.std_vector.template(cg.uint8))
+    cg.add(var.set_data_template(templ))
     return var
+
+
+@automation.register_action(
+    "espnow.new.peer",
+    NewPeerAction,
+    cv.maybe_simple_value(
+        {
+            cv.GenerateID(): cv.use_id(ESPNowComponent),
+            cv.Required(CONF_MAC_ADDRESS): cv.templatable(cv.mac_address),
+        },
+        key=CONF_MAC_ADDRESS,
+    ),
+)
+async def new_peer_action(config, action_id, template_arg, args):
+    var = cg.new_Pvariable(action_id, template_arg)
+    if CONF_MAC_ADDRESS in config:
+        template_ = await cg.templatable(config[CONF_MAC_ADDRESS].as_hex, args, cg.uint64)
+        cg.add(var.set_mac_address(template_))
+    return var
+
+@automation.register_action(
+    "espnow.del.peer",
+    DelPeerAction,
+    cv.maybe_simple_value(
+        {
+            cv.GenerateID(): cv.use_id(ESPNowComponent),
+            cv.Required(CONF_MAC_ADDRESS): cv.templatable(cv.mac_address),
+        },
+        key=CONF_MAC_ADDRESS,
+    ),
+)
+async def del_peer_action(config, action_id, template_arg, args):
+    var = cg.new_Pvariable(action_id, template_arg)
+    if CONF_MAC_ADDRESS in config:
+        template_ = await cg.templatable(config[CONF_MAC_ADDRESS].as_hex, args, cg.uint64)
+        cg.add(var.set_mac_address(template_))
+    return var
+
