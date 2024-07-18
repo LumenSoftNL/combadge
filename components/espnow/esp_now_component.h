@@ -115,14 +115,16 @@ class ESPNowComponent : public Component {
     this->wifi_channel_ = channel;
   }
 
-  void send_package(const uint8_t *mac_address, const uint8_t *data, int len) {
+  ESPNowPackage send_package(const uint8_t *mac_address, const uint8_t *data, int len) {
     auto package = new ESPNowPackage(mac_address, data, len);
     this->send_package(package);
+    return package;
   }
 
-  void send_package(const uint64_t mac_address, const std::vector<uint8_t> data) {
+  ESPNowPackage send_package(const uint64_t mac_address, const std::vector<uint8_t> data) {
     auto package = new ESPNowPackage(mac_address, data);
     this->send_package(package);
+    return package;
   }
 
   void send_package(ESPNowPackage * package);
@@ -159,7 +161,7 @@ class ESPNowComponent : public Component {
   }
   esp_err_t del_peer(uint8_t *addr);
 
-  void set_auto_add_user(bool value) { this->auto_add_user_ = value; }
+  void set_auto_add_peer(bool value) { this->auto_add_peer_ = value; }
 
   void on_package_received(ESPNowPackage* package);
   void on_package_send(ESPNowPackage* package);
@@ -179,7 +181,7 @@ class ESPNowComponent : public Component {
 
 
   uint8_t wifi_channel_{0};
-  bool auto_add_user_{false};
+  bool auto_add_peer_{false};
 
   CallbackManager<void(ESPNowPackage*)> on_package_send_;
   CallbackManager<void(ESPNowPackage*)> on_package_receved_;

@@ -111,13 +111,7 @@ void ESPNowComponent::setup() {
 void ESPNowComponent::send_package(ESPNowPackage *package) {
   uint8_t[6] mac;
   package->mac_bytes(&mac);
-  if (!esp_now_is_peer_exist(mac)) {
-    if (this->auto_add_peer_) {
-      this->add_peer(mac);
-    } else {
-      this->on_new_peer(package);
-    }
-  }
+
   if (esp_now_is_peer_exist(mac)) {
     this->push_send_package_(package);
   } else {
