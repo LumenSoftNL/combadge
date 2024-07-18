@@ -8,7 +8,6 @@
 #else
 #include "esp_system.h"
 #endif
-#include <WiFi.h>
 
 #if defined(USE_ESP32)
 #include <esp_now.h>
@@ -101,11 +100,6 @@ void ESPNowComponent::setup() {
   ESP_ERROR_CHECK(esp_wifi_set_channel(this->wifi_channel_, WIFI_SECOND_CHAN_NONE));
 #else
   // Set device as a Wi-Fi Station
-  WiFi.disconnect(true, true);
-  WiFi.mode(WIFI_AP_STA);
-#ifdef CONFIG_ESPNOW_ENABLE_LONG_RANGE
-  esp_wifi_get_protocol(ESP_IF_WIFI_STA, WIFI_PROTOCOL_LR);
-#endif
 
   esp_wifi_set_promiscuous(true);
   esp_wifi_set_channel(config.channel, WIFI_SECOND_CHAN_NONE);
