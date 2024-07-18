@@ -8,8 +8,14 @@
 #else
 #include "esp_system.h"
 #endif
+#include <WiFi.h>
 
-#include "esp_wifi.h"
+#if defined(USE_ESP32)
+#include <esp_now.h>
+#elif defined(USE_ESP8266)
+#include <ESP8266WiFi.h>
+#include <espnow.h>
+#endif
 
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
@@ -67,11 +73,17 @@ ESPNowComponent::ESPNowComponent() { global_esp_now = this; }
 
 void ESPNowComponent::log_error_(std::string msg, esp_err_t err) { ESP_LOGE(TAG, msg.c_str(), esp_err_to_name(err)); }
 
-void ESPNowComponent::dump_config() { ESP_LOGCONFIG(TAG, "esp_now:"); }
+void ESPNowComponent::dump_config() {
+  ESP_LOGCONFIG(TAG, "esp_now:");
+
+}
 
 void ESPNowComponent::setup() {
   ESP_LOGCONFIG(TAG, "Setting up ESP-NOW...");
 
+#ifdef USE_ESP32
+#ifndef USE_WIFI
+  ESP_LOGCONFIG(TAG, "Init Wifi...");
   ESP_ERROR_CHECK(esp_netif_init());
   ESP_ERROR_CHECK(esp_event_loop_create_default());
   wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
@@ -80,16 +92,48 @@ void ESPNowComponent::setup() {
   ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
   ESP_ERROR_CHECK(esp_wifi_start());
   ESP_ERROR_CHECK(esp_wifi_set_channel(this->wifi_channel_, WIFI_SECOND_CHAN_NONE));
+#else
+  // Set device as a Wi-Fi Station
+  WiFi.disconnect(true, true);
+  WiFi.mode(WIFI_AP_STA);
+#ifdef CONFIG_ESPNOW_ENABLE_LONG_RANGE
+  esp_wifi_get_protocol(ESP_IF_WIFI_STA, WIFI_PROTOCOL_LR);
+#endif
+
+  esp_wifi_set_promiscuous(true);
+  esp_wifi_set_channel(config.channel, WIFI_SECOND_CHAN_NONE);
+  esp_wifi_set_promiscuous(false);
+#endif
 
   esp_err_t err = esp_now_init();
   if (err != ESP_OK) {
-    this->log_error_("esp_now_init failed: %s", err);
+    ESP_LOGE(TAG, "esp_now_init failed: %s", esp_err_to_name(err));
     this->mark_failed();
     return;
   }
 
-  esp_wifi_set_protocol(WIFI_IF_STA, WIFI_PROTOCOL_LR);
+#elif defined(USE_ESP8266)
+  int err = esp_now_init();
+  if (err) {
+    ESP_LOGE(TAG, "esp_now_init failed: %d", err);
+    this->mark_failed();
+    return;
+  }
 
+  err = esp_now_set_self_role(ESP_NOW_ROLE_SLAVE);
+  if (err) {
+    ESP_LOGE(TAG, "esp_now_set_self_role failed: %d", err);
+    this->mark_failed();
+    return;
+  }
+
+  err = esp_now_register_recv_cb(ESPNowComponent::on_data_received);
+  if (err) {
+    ESP_LOGE(TAG, "esp_now_register_recv_cb failed: %d", err);
+    this->mark_failed();
+    return;
+  }
+#endif
   err = esp_now_register_recv_cb(ESPNowComponent::on_data_received);
   if (err != ESP_OK) {
     this->log_error_("esp_now_register_recv_cb failed: %s", err);

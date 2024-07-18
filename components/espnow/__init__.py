@@ -3,8 +3,7 @@ import esphome.config_validation as cv
 import esphome.codegen as cg
 from esphome.const import CONF_ID, CONF_DATA, CONF_MAC_ADDRESS, CONF_TRIGGER_ID
 
-CODEOWNERS = ["@LumenSoftNL"]
-
+CODEOWNERS = ["@LumenSoftNL", "@jesserockz"]
 
 espnow_ns = cg.esphome_ns.namespace("esp_now")
 ESPNowComponent = espnow_ns.class_("ESPNowComponent", cg.Component)
@@ -48,21 +47,9 @@ CONFIG_SCHEMA = cv.Schema(
         cv.GenerateID(): cv.declare_id(ESPNowComponent),
         cv.Optional(CONF_CHANNEL, default=0): cv.int_range(0, 14),
         cv.Optional(CONF_AUTO_NEW_PEER, default=False): cv.bool,
-        cv.Optional(CONF_ON_PACKAGE_RECEIVED): automation.validate_automation(
-            {
-                cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(ESPNowReceiveTrigger),
-            }
-        ),
-        cv.Optional(CONF_ON_PACKAGE_SEND): automation.validate_automation(
-            {
-                cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(ESPNowSendTrigger),
-            }
-        ),
-        cv.Optional(CONF_ON_NEW_PEER): automation.validate_automation(
-            {
-                cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(ESPNowNewPeerTrigger),
-            }
-        ),
+        cv.Optional(CONF_ON_PACKAGE_RECEIVED): automation.validate_automation(single=True),
+        cv.Optional(CONF_ON_PACKAGE_SEND): automation.validate_automation(single=True),
+        cv.Optional(CONF_ON_NEW_PEER): automation.validate_automation(single=True),
         cv.Optional(CONF_PEERS): cv.ensure_list(cv.mac_address),
     }
 ).extend(cv.COMPONENT_SCHEMA)

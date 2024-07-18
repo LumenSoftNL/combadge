@@ -3,9 +3,6 @@
 #include "esphome/core/automation.h"
 #include "esphome/core/component.h"
 #include "esphome/core/helpers.h"
-#include "esphome/core/automation.h"
-
-#include <esp_now.h>
 
 #include <array>
 #include <memory>
@@ -14,8 +11,6 @@
 
 namespace esphome {
 namespace esp_now {
-
-
 
 static const uint64_t broadcastAddress = 0xFFFFFFFFFFFF;
 
@@ -97,11 +92,16 @@ class ESPNowComponent : public Component {
  public:
   ESPNowComponent();
 
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 1)
-  static void on_data_received((const esp_now_recv_info_t *recv_info, const uint8_t *data, int size);
-#else
-  static void on_data_received(const uint8_t *addr, const uint8_t *data, int size);
+#ifdef USE_ESP8266
+  static void on_data_received(uint8_t *addr, uint8_t *data, uint8_t size);
+#elif USE_ESP32
+  #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 1)
+    static void on_data_received((const esp_now_recv_info_t *recv_info, const uint8_t *data, int size);
+  #else
+    static void on_data_received(const uint8_t *addr, const uint8_t *data, int size);
+  #endif
 #endif
+
   static void on_data_send(const uint8_t *mac_addr, esp_now_send_status_t status);
 
   void dump_config() override;
