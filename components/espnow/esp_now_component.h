@@ -4,6 +4,13 @@
 #include "esphome/core/component.h"
 #include "esphome/core/helpers.h"
 
+#if defined(USE_ESP32)
+#include <esp_now.h>
+#elif defined(USE_ESP8266)
+#include <ESP8266WiFi.h>
+#include <espnow.h>
+#endif
+
 #include <array>
 #include <memory>
 #include <queue>
@@ -148,16 +155,16 @@ class ESPNowComponent : public Component {
   }
 
   esp_err_t add_peer(uint64_t addr) {
-    uint8_t[6] mac;
-    memcpy(&addr, &mac , 6);
-    return add_peer(&mac);
+    uint8_t[6] * mac;
+    memcpy(&addr, mac , 6);
+    return add_peer(mac);
   }
   esp_err_t add_peer(uint8_t *addr);
 
   esp_err_t del_peer(uint64_t addr) {
-    uint8_t[6] mac;
-    memcpy(&addr, &mac , 6);
-    return del_peer(&mac);
+    uint8_t[6] * mac;
+    memcpy(&addr, mac , 6);
+    return del_peer(mac);
   }
   esp_err_t del_peer(uint8_t *addr);
 
