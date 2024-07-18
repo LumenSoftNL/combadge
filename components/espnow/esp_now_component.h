@@ -39,7 +39,7 @@ class ESPNowPackage {
   }
   void reset_counter() {
     send_count_ = 0;
-    del_holding()
+    del_holding();
   }
 
   void is_broadcast(bool value) { this->is_broadcast_ = value; }
@@ -75,16 +75,16 @@ class ESPNowInterface : public Parented<ESPNowComponent> {
   virtual bool on_package_send(ESPNowPackage *package) { return false; };
   virtual bool on_new_peer(ESPNowPackage *package) { return false; };
   virtual void send_package(const uint64_t mac_address, const std::vector<uint8_t> data) {
-    parent->send_package(mac_address, data);
+    parent_->send_package(mac_address, data);
   }
-  virtual add_peer(const uint64_t mac_address) {
-    patent->add_peer(mac_address);
+  virtual void add_peer(const uint64_t mac_address) {
+    parent_->add_peer(mac_address);
   }
-  virtual del_peer(const uint64_t mac_address) {
-    patent->add_peer(mac_address);
+  virtual void del_peer(const uint64_t mac_address) {
+    parent_->add_peer(mac_address);
   }
   void set_auto_add_user(bool value) {
-    parent->set_auto_add_user(value);
+    parent_->set_auto_add_user(value);
   }
 };
 
@@ -242,21 +242,21 @@ template<typename... Ts> class DelPeerAction : public Action<Ts...> {
 class ESPNowSendTrigger : public Trigger<ESPNowPackage *> {
  public:
   explicit ESPNowSendTrigger(ESPNowComponent *parent) {
-    parent->add_on_package_send_callback([this](ESPNowPackage *value) { this->trigger(value); });
+    parent_->add_on_package_send_callback([this](ESPNowPackage *value) { this->trigger(value); });
   }
 };
 
 class ESPNowReceiveTrigger : public Trigger<ESPNowPackage *> {
  public:
   explicit ESPNowReceiveTrigger(ESPNowComponent *parent) {
-    parent->add_on_package_receive_callback([this](ESPNowPackage *value) { this->trigger(value); });
+    parent_->add_on_package_receive_callback([this](ESPNowPackage *value) { this->trigger(value); });
   }
 };
 
 class ESPNowNewPeerTrigger : public Trigger<ESPNowPackage *> {
  public:
   explicit ESPNowNewPeerTrigger(ESPNowComponent *parent) {
-    parent->add_on_peer_callback([this](ESPNowPackage *value) { this->trigger(value); });
+    parent_->add_on_peer_callback([this](ESPNowPackage *value) { this->trigger(value); });
   }
 };
 
