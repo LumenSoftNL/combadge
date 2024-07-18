@@ -46,7 +46,7 @@ CONFIG_SCHEMA = cv.Schema(
     {
         cv.GenerateID(): cv.declare_id(ESPNowComponent),
         cv.Optional(CONF_CHANNEL, default=0): cv.int_range(0, 14),
-        cv.Optional(CONF_AUTO_NEW_PEER, default=False): cv.bool,
+        cv.Optional(CONF_AUTO_NEW_PEER, default=False): cv.boolean,
         cv.Optional(CONF_ON_PACKAGE_RECEIVED): automation.validate_automation(single=True),
         cv.Optional(CONF_ON_PACKAGE_SEND): automation.validate_automation(single=True),
         cv.Optional(CONF_ON_NEW_PEER): automation.validate_automation(single=True),
