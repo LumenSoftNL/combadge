@@ -21,7 +21,43 @@ namespace esp_now {
 
 static const uint64_t broadcastAddress = 0xFFFFFFFFFFFF;
 
+typedef uint8_t Mac_Adress_t[6];
+
+static void uint64_to_addr(uint64_t address, Mac_Adress_t bd_addr) {
+  bd_addr[0] = (address >> 40) & 0xff;
+  bd_addr[1] = (address >> 32) & 0xff;
+  bd_addr[2] = (address >> 24) & 0xff;
+  bd_addr[3] = (address >> 16) & 0xff;
+  bd_addr[4] = (address >> 8) & 0xff;
+  bd_addr[5] = (address >> 0) & 0xff;
+}
+
+static uint64_t addr_to_uint64(const Mac_Adress_t address) {
+  uint64_t u = 0;
+  u |= uint64_t(address[0] & 0xFF) << 40;
+  u |= uint64_t(address[1] & 0xFF) << 32;
+  u |= uint64_t(address[2] & 0xFF) << 24;
+  u |= uint64_t(address[3] & 0xFF) << 16;
+  u |= uint64_t(address[4] & 0xFF) << 8;
+  u |= uint64_t(address[5] & 0xFF) << 0;
+  return u;
+}
+
 class ESPNowComponent;
+
+template<typename T, typename Container=std::deque<T> >
+class iterable_queue : public std::queue<T,Container>
+{
+public:
+    typedef typename Container::iterator iterator;
+    typedef typename Container::const_iterator const_iterator;
+
+    iterator begin() { return this->c.begin(); }
+    iterator end() { return this->c.end(); }
+    const_iterator begin() const { return this->c.begin(); }
+    const_iterator end() const { return this->c.end(); }
+};
+
 
 class ESPNowPackage {
  public:
@@ -31,8 +67,8 @@ class ESPNowPackage {
   uint64_t mac_address() { return mac_address_; }
 
   void mac_bytes(uint8_t * mac_addres) {
-    auto mac = this->mac_address_==0?broadcastAddress:this->mac_address_;
-    memcpy(mac_addres, &mac,6);
+    uint64_t mac = this->mac_address_==0?broadcastAddress:this->mac_address_;
+    uint64_to_addr(mac, mac_addres );
   }
 
   std::vector<uint8_t> data() { return data_; }
@@ -74,25 +110,19 @@ class ESPNowPackage {
 };
 
 
-class ESPNowInterface : public Parented<ESPNowComponent> {
+class ESPNowInterface : public Component, public Parented<ESPNowComponent> {
  public:
   ESPNowInterface();
+
+  void setup() override;
 
   virtual bool on_package_received(ESPNowPackage *package) { return false; };
   virtual bool on_package_send(ESPNowPackage *package) { return false; };
   virtual bool on_new_peer(ESPNowPackage *package) { return false; };
-  virtual void send_package(const uint64_t mac_address, const std::vector<uint8_t> data) {
-    parent_->send_package(mac_address, data);
-  }
-  virtual void add_peer(const uint64_t mac_address) {
-    parent_->add_peer(mac_address);
-  }
-  virtual void del_peer(const uint64_t mac_address) {
-    parent_->add_peer(mac_address);
-  }
-  void set_auto_add_user(bool value) {
-    parent_->set_auto_add_user(value);
-  }
+  virtual void send_package(const uint64_t mac_address, const std::vector<uint8_t> data);
+  virtual void add_peer64(const uint64_t mac_address);
+  virtual void del_peer64(const uint64_t mac_address);
+  void set_auto_add_peer(bool value);
 };
 
 class ESPNowComponent : public Component {
@@ -113,7 +143,7 @@ class ESPNowComponent : public Component {
 
   void dump_config() override;
   float get_setup_priority() const override {
-    return setup_priority::AFTER_CONNECTION; }
+    return -100; }
 
   void setup() override;
 
@@ -122,13 +152,13 @@ class ESPNowComponent : public Component {
     this->wifi_channel_ = channel;
   }
 
-  ESPNowPackage send_package(const uint8_t *mac_address, const uint8_t *data, int len) {
+  ESPNowPackage * send_package(const uint8_t *mac_address, const uint8_t *data, int len) {
     auto package = new ESPNowPackage(mac_address, data, len);
     this->send_package(package);
     return package;
   }
 
-  ESPNowPackage send_package(const uint64_t mac_address, const std::vector<uint8_t> data) {
+  ESPNowPackage * send_package(const uint64_t mac_address, const std::vector<uint8_t> data) {
     auto package = new ESPNowPackage(mac_address, data);
     this->send_package(package);
     return package;
@@ -154,19 +184,18 @@ class ESPNowComponent : public Component {
     this->protocols_.push_back(protocol);
   }
 
-  esp_err_t add_peer(uint64_t addr) {
-    uint8_t[6] * mac;
-    memcpy(&addr, mac , 6);
-    return add_peer(mac);
-  }
-  esp_err_t add_peer(uint8_t *addr);
+  esp_err_t add_peer64(uint64_t addr);
 
-  esp_err_t del_peer(uint64_t addr) {
-    uint8_t[6] * mac;
-    memcpy(&addr, mac , 6);
+  esp_err_t add_peer(uint8_t * addr);
+
+  esp_err_t del_peer64(uint64_t addr) {
+    Mac_Adress_t mac;
+    uint64_to_addr(addr, mac );
     return del_peer(mac);
   }
-  esp_err_t del_peer(uint8_t *addr);
+
+  esp_err_t del_peer(uint8_t * addr);
+
 
   void set_auto_add_peer(bool value) { this->auto_add_peer_ = value; }
 
@@ -175,6 +204,8 @@ class ESPNowComponent : public Component {
   void on_new_peer(ESPNowPackage* package);
 
   void log_error_(std::string msg, esp_err_t err);
+
+
 
  protected:
   void unHold_send_(uint64_t mac);
@@ -194,80 +225,91 @@ class ESPNowComponent : public Component {
   CallbackManager<void(ESPNowPackage*)> on_package_receved_;
   CallbackManager<void(ESPNowPackage*)> on_new_peer_;
 
-  std::queue<ESPNowPackage*> receive_queue_;
-  std::queue<ESPNowPackage*> send_queue_;
+  iterable_queue<ESPNowPackage*> receive_queue_{};
+  iterable_queue<ESPNowPackage*> send_queue_{};
 
-  std::vector<ESPNowInterface *> protocols_;
+  std::vector<ESPNowInterface *> protocols_{};
+  std::vector<uint64_t> peers_{};
+
   bool can_send_{true};
-
-
 };
 
-template<typename... Ts> class SendAction : public Action<Ts...> {
+
+template<typename... Ts> class SendAction : public Action<Ts...>, public Parented<ESPNowComponent> {
  public:
   template<typename V> void set_mac(V mac) { this->mac_ = mac; }
-  template<typename V> void set_data(V data) { this->data_ = data; }
+  void set_data_template(std::function<std::vector<uint8_t>(Ts...)> func) {
+    this->data_func_ = func;
+    this->static_ = false;
+  }
+  void set_data_static(const std::vector<uint8_t> &data) {
+    this->data_static_ = data;
+    this->static_ = true;
+  }
 
   void play(Ts... x) override {
-    auto mac = this->mac_.value(x...);
-    auto data = this->data_.value(x...);
-    global_esp_now->send_package(mac, data);
+  auto mac = this->mac_.value(x...);
+
+  if (this->static_) {
+    this->parent_->send_package(mac, this->data_static_);
+  } else {
+    auto val = this->data_func_(x...);
+    this->parent_->send_package(mac, val);
   }
+ }
+
 
  protected:
   TemplatableValue<uint64_t, Ts...> mac_{};
-  TemplatableValue<std::vector<uint8_t>, Ts...> data_{};
-}
+  bool static_{false};
+  std::function<std::vector<uint8_t>(Ts...)> data_func_{};
+  std::vector<uint8_t> data_static_{};
+};
 
-template<typename... Ts> class NewPeerAction : public Action<Ts...> {
+template<typename... Ts> class NewPeerAction : public Action<Ts...>, public Parented<ESPNowComponent> {
+ public:
+  template<typename V> void set_mac(V mac){ this->mac_ = mac; }
+  void play(Ts... x) override {
+  auto mac = this->mac_.value(x...);
+  parent_->add_peer64(mac);
+}
+ protected:
+  TemplatableValue<uint64_t, Ts...> mac_{};
+};
+
+template<typename... Ts> class DelPeerAction : public Action<Ts...>, public Parented<ESPNowComponent> {
  public:
   template<typename V> void set_mac(V mac) { this->mac_ = mac; }
   void play(Ts... x) override {
-    auto mac = this->mac_.value(x...);
-    global_esp_now->add_peer(mac);
-  }
+  auto mac = this->mac_.value(x...);
+  parent_->del_peer64(mac);
+}
 
  protected:
   TemplatableValue<uint64_t, Ts...> mac_{};
-}
-
-template<typename... Ts> class DelPeerAction : public Action<Ts...> {
- public:
-  template<typename V> void set_mac(V mac) { this->mac_ = mac; }
-  void play(Ts... x) override {
-    auto mac = this->mac_.value(x...);
-    global_esp_now->del_peer(mac);
-  }
-
- protected:
-  TemplatableValue<uint64_t, Ts...> mac_{};
-}
-
-
+};
 
 
 class ESPNowSendTrigger : public Trigger<ESPNowPackage *> {
  public:
   explicit ESPNowSendTrigger(ESPNowComponent *parent) {
-    parent_->add_on_package_send_callback([this](ESPNowPackage *value) { this->trigger(value); });
+    parent->add_on_package_send_callback([this](ESPNowPackage *value) { this->trigger(value); });
   }
 };
 
 class ESPNowReceiveTrigger : public Trigger<ESPNowPackage *> {
  public:
   explicit ESPNowReceiveTrigger(ESPNowComponent *parent) {
-    parent_->add_on_package_receive_callback([this](ESPNowPackage *value) { this->trigger(value); });
+    parent->add_on_package_receive_callback([this](ESPNowPackage *value) { this->trigger(value); });
   }
 };
 
 class ESPNowNewPeerTrigger : public Trigger<ESPNowPackage *> {
  public:
   explicit ESPNowNewPeerTrigger(ESPNowComponent *parent) {
-    parent_->add_on_peer_callback([this](ESPNowPackage *value) { this->trigger(value); });
+    parent->add_on_peer_callback([this](ESPNowPackage *value) { this->trigger(value); });
   }
 };
-
-
 
 extern ESPNowComponent *global_esp_now;
 
