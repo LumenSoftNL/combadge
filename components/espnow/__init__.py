@@ -1,7 +1,9 @@
 from esphome import automation
 import esphome.config_validation as cv
 import esphome.codegen as cg
-from esphome.const import CONF_ID, CONF_DATA, CONF_MAC_ADDRESS, CONF_TRIGGER_ID
+from esphome.const import CONF_ID, CONF_DATA, CONF_MAC_ADDRESS, CONF_TRIGGER_ID, CONF_WIFI
+from esphome.core import CORE
+
 
 CODEOWNERS = ["@LumenSoftNL", "@jesserockz"]
 
@@ -12,6 +14,9 @@ ESPNowListener = espnow_ns.class_("ESPNowListener")
 ESPNowPackage = espnow_ns.class_("ESPNowPackage")
 ESPNowPackagePtrConst = ESPNowPackage.operator("ptr")  # .operator("const")
 
+ESPNowInterface = espnow_ns.class_(
+    "ESPNowInterface", cg.Component, cg.Parented.template(ESPNowComponent)
+)
 
 ESPNowSendTrigger = espnow_ns.class_("ESPNowSendTrigger", automation.Trigger.template())
 ESPNowReceiveTrigger = espnow_ns.class_(
@@ -44,6 +49,17 @@ def validate_raw_data(value):
     )
 
 
+def disallowed_component(comp):
+    """Validate that this option can only be specified when the component `comp` is not loaded."""
+
+    def validator(value):
+        if comp in CORE.loaded_integrations:
+            raise cv.Invalid(f"This component  requires component {comp}")
+        return value
+
+    return validator
+
+
 CONFIG_SCHEMA = cv.Schema(
     {
         cv.GenerateID(): cv.declare_id(ESPNowComponent),
@@ -53,23 +69,33 @@ CONFIG_SCHEMA = cv.Schema(
             {
                 cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(ESPNowReceiveTrigger),
             }
-            ),
+        ),
         cv.Optional(CONF_ON_PACKAGE_SEND): automation.validate_automation(
             {
                 cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(ESPNowSendTrigger),
-            }),
+            }
+        ),
         cv.Optional(CONF_ON_NEW_PEER): automation.validate_automation(
             {
                 cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(ESPNowNewPeerTrigger),
-            }),
+            }
+        ),
         cv.Optional(CONF_PEERS): cv.ensure_list(cv.mac_address),
-    }
+    },
+    disallowed_component(CONF_WIFI),
 ).extend(cv.COMPONENT_SCHEMA)
 
 
 async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
+
+    if CORE.is_esp8266:
+        cg.add_library("ESP8266WiFi", None)
+    elif CORE.is_esp32 and CORE.using_arduino:
+        cg.add_library("WiFi", None)
+    elif CORE.is_rp2040:
+        cg.add_library("WiFi", None)
 
     cg.add_define("USE_ESPNOW")
 
@@ -78,19 +104,24 @@ async def to_code(config):
 
     for conf in config.get(CONF_ON_PACKAGE_SEND, []):
         trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
-        await automation.build_automation(trigger, [(ESPNowPackagePtrConst, "it")], conf)
+        await automation.build_automation(
+            trigger, [(ESPNowPackagePtrConst, "it")], conf
+        )
 
     for conf in config.get(CONF_ON_PACKAGE_RECEIVED, []):
         trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
-        await automation.build_automation(trigger, [(ESPNowPackagePtrConst, "it")], conf)
+        await automation.build_automation(
+            trigger, [(ESPNowPackagePtrConst, "it")], conf
+        )
 
     for conf in config.get(CONF_ON_NEW_PEER, []):
         trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
-        await automation.build_automation(trigger, [(ESPNowPackagePtrConst, "it")], conf)
+        await automation.build_automation(
+            trigger, [(ESPNowPackagePtrConst, "it")], conf
+        )
 
     for conf in config.get(CONF_PEERS, []):
-        cg.add(var.add_peer64(conf.as_hex))
-
+        cg.add(var.add_peer(conf.as_hex))
 
 
 @automation.register_action(
@@ -139,9 +170,7 @@ async def send_action(config, action_id, template_arg, args):
 )
 async def new_peer_action(config, action_id, template_arg, args):
     var = cg.new_Pvariable(action_id, template_arg)
-    template_ = await cg.templatable(
-        config[CONF_MAC_ADDRESS].as_hex, args, cg.uint64
-    )
+    template_ = await cg.templatable(config[CONF_MAC_ADDRESS].as_hex, args, cg.uint64)
     cg.add(var.set_mac(template_))
     return var
 
@@ -159,8 +188,6 @@ async def new_peer_action(config, action_id, template_arg, args):
 )
 async def del_peer_action(config, action_id, template_arg, args):
     var = cg.new_Pvariable(action_id, template_arg)
-    template_ = await cg.templatable(
-        config[CONF_MAC_ADDRESS].as_hex, args, cg.uint64
-    )
+    template_ = await cg.templatable(config[CONF_MAC_ADDRESS].as_hex, args, cg.uint64)
     cg.add(var.set_mac(template_))
     return var

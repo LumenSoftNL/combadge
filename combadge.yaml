@@ -15,55 +15,29 @@ esphome:
 
 esp32:
   board: m5stack-atom
-  framework:
-    type: esp-idf
+
 
 # To be able to get logs from the device via serial and api.
 logger:
 
-# API is a requirement of the dashboard import.
-api:
-  on_client_connected:
-      - component.update: nowTalk
-      - rtttl.play: "Urgent:d=8,o=6,b=500:c,e,d7,c,e,a#,c,e,a,c,e,g,c,e,a,c,e,a#,c,e,d7"
-
-# OTA is required for Over-the-Air updating
-ota:
-  - platform: esphome
-
-# This should point to the public location of this yaml file.
-dashboard_import:
-  package_import_url: github://lumensoftnl/combadge/combadge.yaml
-  import_full_config: false # or true
-
 external_components:
+  - source:
+      type: local
+      path: C:\Development\projects\esphome\esphome\components
+    components:
+      - i2s_audio
+      - speaker
   - source: github://pr#5230
     components:
       - esp_adf
   - source: github://pr#5968
     components:
       - rtttl
-  - source: github://pr#6872
-    components:
-      - i2s_audio
-  - source: github://lumensoftnl/combadge
-    refresh: 0s
+  - source:
+      type: local
+      path: C:\Development\projects\combadge\components
 
 esp_adf:
-
-wifi:
-  on_connect:
-    - delay: 5s  # Gives time for improv results to be transmitted
-    - ble.disable:
-  ap:
-
-captive_portal:
-
-esp32_improv:
-  authorizer: echo_button2
-
-
-improv_serial:
 
 i2s_audio:
   i2s_lrclk_pin: GPIO33
@@ -83,172 +57,33 @@ speaker:
     i2s_dout_pin: GPIO22
     mode: mono
 
-voice_assistant:
-  id: va
-  microphone: echo_microphone
-  speaker: echo_speaker
-  noise_suppression_level: 2
-  auto_gain: 31dBFS
-  volume_multiplier: 2.0
-  vad_threshold: 3
-
-  on_listening:
-    - light.turn_on:
-        id: led
-        blue: 100%
-        red: 0%
-        green: 0%
-        effect: "Slow Pulse"
-  on_stt_vad_end:
-      - light.turn_on:
-          id: led
-          blue: 100%
-          red: 0%
-          green: 0%
-          effect: "Fast Pulse"
-  on_tts_start:
-    - light.turn_on:
-        id: led
-        blue: 100%
-        red: 0%
-        green: 0%
-        brightness: 100%
-        effect: none
-  on_end:
-    - light.turn_on:
-        id: led
-        blue: 00%
-        red: 0%
-        green: 100%
-        brightness: 100%
-        effect: none
-    - delay: 100ms
-    - wait_until:
-        not:
-          speaker.is_playing:
-    - script.execute: reset_led
-  on_error:
-    - light.turn_on:
-        id: led
-        red: 100%
-        green: 0%
-        blue: 0%
-        brightness: 100%
-        effect: none
-    - delay: 1s
-    - script.execute: reset_led
-    - rtttl.play: "TextAler:d=16,o=7,b=225:d,p,2g."
-  on_client_disconnected:
-    - if:
-        condition: voice_assistant.is_running
-        then:
-          - voice_assistant.stop:
-          - light.turn_off: led
-
-light:
-  - platform: esp32_rmt_led_strip
-    id: led
-    name: None
-    disabled_by_default: true
-    entity_category: config
-    pin: GPIO27
-    default_transition_length: 0s
-    chipset: SK6812
-    num_leds: 1
-    rgb_order: grb
-    rmt_channel: 0
-    effects:
-      - pulse:
-          name: "Slow Pulse"
-          transition_length: 250ms
-          update_interval: 250ms
-          min_brightness: 50%
-          max_brightness: 100%
-      - pulse:
-          name: "Fast Pulse"
-          transition_length: 100ms
-          update_interval: 100ms
-          min_brightness: 50%
-          max_brightness: 100%
-
-script:
-  - id: reset_led
-    then:
-      - light.turn_off: led
-
-esp32_touch:
-  setup_mode: false
-  iir_filter: 10ms
-
-button:
-  - platform: factory_reset
-    id: factory_reset_btn
-    name: Factory reset
-    disabled_by_default: true
-    entity_category: diagnostic
-
-
-binary_sensor:
-  - platform: esp32_touch
-    pin: T9
-    threshold: 900
-    name: Button
-    disabled_by_default: true
-    entity_category: diagnostic
-    id: echo_button2
-    on_multi_click:
-      - timing:
-          - ON for at least 150ms
-          - OFF for at least 50ms
-        then:
-          - if:
-              condition: voice_assistant.is_running
-              then:
-                - voice_assistant.stop:
-                - delay: 1s
-                - script.execute: reset_led
-                - rtttl.play: "Schooier:d=4,o=5,b=225:d,e4."
-                - wait_until:
-                    not:
-                      speaker.is_playing:
-              else:
-                - rtttl.play: "KnockKno:d=32,o=5,b=300:e4,g6."
-                - wait_until:
-                    not:
-                      speaker.is_playing:
-                - voice_assistant.start:
-                - script.execute: reset_led
-                - script.wait: reset_led
-                - voice_assistant.start_continuous:
-      - timing:
-          - ON for at least 10s
-        then:
-          - button.press: factory_reset_btn
-
-
 rtttl:
   speaker: echo_speaker
   id: my_rtttl
   gain: ${rttti_gain}
 
 
-remote_transmitter:
-  pin:
-    number: GPIO12
-    ignore_strapping_warning: True
-  rmt_channel: 3
-  carrier_duty_percent: 50%
+
+espnow:
+  auto_add_peer: true
+  peers:
+    - FF:FF:FF:FF:FF:FF
+  on_package_received:
+    - logger.log:
+        format: "Received: %s"
+        args: [ it->data().data() ]
 
 
-nowtalk:
-
-text_sensor:
-  - platform: template
-    id: nowTalk
-    name: "nowTalk"
-    lambda: |-
-      return nowtalk::badgeIDStr();
-    update_interval: never
-
-esphome:
-  
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO39
+      inverted: true
+    name: Button
+    disabled_by_default: true
+    entity_category: diagnostic
+    id: echo_button
+    on_click:
+      then:
+        - rtttl.play: "Urgent:d=8,o=6,b=500:c,e,d7,c,e,a#,c,e,a,c,e,g,c,e,a,c,e,a#,c,e,d7"
+        - espnow.send: "Hallo world"
