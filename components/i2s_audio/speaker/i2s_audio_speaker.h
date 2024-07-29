@@ -64,8 +64,8 @@ class I2SAudioSpeaker : public Component, public speaker::Speaker, public I2SAud
   static void player_task(void *params);
 
   TaskHandle_t player_task_handle_{nullptr};
-  std::unique_ptr<RingBuffer> buffer_queue_{nullptr};
-  QueueHandle_t event_queue_;
+  StreamBufferHandle_t  buffer_queue_{nullptr};
+  QueueHandle_t event_queue_{nullptr};
 
   uint8_t dout_pin_{0};
   bool task_created_{false};
