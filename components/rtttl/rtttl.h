@@ -22,7 +22,7 @@ enum State : uint8_t {
 };
 
 #ifdef USE_SPEAKER
-static const size_t SAMPLE_BUFFER_SIZE = 512;
+static const size_t SAMPLE_BUFFER_SIZE = 2048;
 
 struct SpeakerSample {
   int8_t left{0};

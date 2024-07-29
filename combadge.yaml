@@ -95,7 +95,7 @@ binary_sensor:
     id: echo_button
     on_click:
       - rtttl.play: "Urgent:d=8,o=6,b=500:c,e,d7"
-    on_press:
-      - intercom.state: microphone
-    on_release:
-      - intercom.state: none
+#    on_press:
+#      - intercom.state: microphone
+#    on_release:
+#      - intercom.state: none

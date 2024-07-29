@@ -153,7 +153,7 @@ void Rtttl::loop() {
     }
 
     if (this->samples_sent_ != this->samples_count_) {
-      SpeakerSample sample[SAMPLE_BUFFER_SIZE + 1];
+      SpeakerSample sample[SAMPLE_BUFFER_SIZE + 2];
       int x = 0;
       double rem = 0.0;
 
