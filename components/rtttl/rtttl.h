@@ -14,12 +14,19 @@
 namespace esphome {
 namespace rtttl {
 
+enum State : uint8_t {
+  STATE_STOPPED = 0,
+  STATE_INIT,
+  STATE_STARTING,
+  STATE_RUNNING,
+};
+
 #ifdef USE_SPEAKER
 static const size_t SAMPLE_BUFFER_SIZE = 512;
 
 struct SpeakerSample {
-  int16_t left{0};
-  int16_t right{0};
+  int8_t left{0};
+  int8_t right{0};
 };
 #endif
 
@@ -42,7 +49,7 @@ class Rtttl : public Component {
   void stop();
   void dump_config() override;
 
-  bool is_playing() { return this->note_duration_ != 0; }
+  bool is_playing() { return this->state_ != State::STATE_STOPPED; }
   void loop() override;
 
   void add_on_finished_playback_callback(std::function<void()> callback) {
@@ -57,6 +64,7 @@ class Rtttl : public Component {
     }
     return ret;
   }
+  void finish_();
 
   std::string rtttl_{""};
   size_t position_{0};
@@ -68,12 +76,11 @@ class Rtttl : public Component {
 
   uint32_t output_freq_;
   float gain_{0.6f};
+  State state_{State::STATE_STOPPED};
 
 #ifdef USE_OUTPUT
   output::FloatOutput *output_;
 #endif
-
-  void play_output_();
 
 #ifdef USE_SPEAKER
   speaker::Speaker *speaker_{nullptr};
