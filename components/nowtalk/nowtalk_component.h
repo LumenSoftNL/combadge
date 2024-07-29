@@ -1,8 +1,15 @@
 #pragma once
 
-#include <vector>
-
+#include "esphome/core/automation.h"
+#include "esphome/core/component.h"
 #include "esphome/core/helpers.h"
+
+#include "../espnow/esp_now_component.h"
+
+#include <array>
+#include <memory>
+#include <queue>
+#include <vector>
 
 namespace esphome {
 namespace nowtalk {
@@ -64,5 +71,13 @@ bool checkBadgeID(std::vector< unsigned uint8_t > code) {
     return crc == baseChars.find((char) chr);
 }
 
-}  // namespace combadge
+
+class NowTalkComponent  : public Component, public ESPNowListener {
+ public:
+  bool on_packet_received(ESPNowPacket *packet) override;
+  bool on_packet_send(ESPNowPacket *packet) override;
+};
+
+
+}  // namespace esp_now
 }  // namespace esphome

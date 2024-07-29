@@ -24,26 +24,16 @@ logger:
 
 
 external_components:
-#  - source:
-#      type: local
-#      path: C:\Development\projects\esphome\esphome\components
-#    components:
-#      - espnow
-#  - source: github://pr#7137
-#    components:
-#      - i2s_audio
-#      - speaker
-#    refresh: 2s
-#  - source: github://pr#5968
-#    components:
-#      - rtttl
-#    refresh: 2s
+  - source:
+      type: local
+      path: C:\Development\projects\esphome\esphome\components
+    components:
+      - i2s_audio
+      - speaker
+      - rtttl
   - source: github://pr#5230
     components:
       - esp_adf
-  - source:
-      type: local
-      path: C:\Development\projects\combadge\components
 
 esp_adf:
 
@@ -63,23 +53,13 @@ speaker:
     id: echo_speaker
     dac_type: external
     i2s_dout_pin: GPIO22
+    use_16bit_mode: true
     mode: mono
 
 rtttl:
   speaker: echo_speaker
   id: my_rtttl
   gain: ${rttti_gain}
-
-espnow:
-  auto_add_peer: true
-  peers:
-    - FF:FF:FF:FF:FF:FF
-  on_receive:
-    - logger.log:
-        format: "Received: %s RSSI: %d"
-        args: [ it->data().data(),  it->rssi()]
-
-intercom:
 
 binary_sensor:
   - platform: gpio
@@ -89,13 +69,6 @@ binary_sensor:
     name: Button
     disabled_by_default: true
     entity_category: diagnostic
-    filters:
-      - delayed_on: 50ms
-      - delayed_off: 50ms
     id: echo_button
     on_click:
       - rtttl.play: "Urgent:d=8,o=6,b=500:c,e,d7"
-    on_press:
-      - intercom.state: microphone
-    on_release:
-      - intercom.state: none
