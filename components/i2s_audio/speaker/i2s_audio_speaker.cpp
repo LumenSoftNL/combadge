@@ -1,6 +1,6 @@
 #include "i2s_audio_speaker.h"
 
-// #ifdef USE_ESP32
+#ifdef USE_ESP32
 
 #include <driver/i2s.h>
 
@@ -31,6 +31,8 @@ void I2SAudioSpeaker::setup() {
     this->mark_failed();
     return;
   }
+  xTaskCreate(I2SAudioSpeaker::player_task, "speaker_task", 8192, (void *) this, 1, &this->player_task_handle_);
+  vTaskSuspend(this->player_task_handle_);
 }
 
 void I2SAudioSpeaker::flush() {
@@ -44,8 +46,12 @@ void I2SAudioSpeaker::start() {
     ESP_LOGE(TAG, "Cannot start audio, speaker failed to setup");
     return;
   }
-  if (this->task_created_) {
-    ESP_LOGW(TAG, "Called start while task has been already created.");
+  if (!this->is_ready()) {
+    ESP_LOGE(TAG, "Speaker has not yet runned setup.");
+    return;
+  }
+  if (eRunning == eTaskGetState(this->player_task_handle_)) {
+    ESP_LOGE(TAG, "Called start while task is already running.");
     return;
   }
   this->set_state_(speaker::STATE_STARTING);
@@ -99,7 +105,7 @@ void I2SAudioSpeaker::start_() {
     i2s_set_dac_mode(this->internal_dac_mode_);
   }
 #endif
-  xTaskCreate(I2SAudioSpeaker::player_task, "speaker_task", 8192, (void *) this, 1, &this->player_task_handle_);
+  vTaskResume(this->player_task_handle_);
   this->set_state_(speaker::STATE_RUNNING);
 }
 
@@ -115,7 +121,6 @@ size_t I2SAudioSpeaker::play(const uint8_t *data, size_t length) {
 
   length = std::min(this->available_space(), length);
   uint32_t dword = xStreamBufferSend(this->buffer_queue_, data, length, 0);
-  ESP_LOGE(TAG, "Play bytes, %d of %d buffer: %d", dword, length, xStreamBufferBytesAvailable(this->buffer_queue_));
   return length;
 }
 
@@ -123,7 +128,6 @@ void I2SAudioSpeaker::player_task(void *params) {
   I2SAudioSpeaker *this_speaker = (I2SAudioSpeaker *) params;
   bool is_playing = false;
   const uint8_t wordsize = this_speaker->use_16bit_mode_ ? 2 : 4;
-  i2s_port_t port = this_speaker->parent_->get_port();
   TaskEvent event;
   uint8_t error_count = 0;
   uint32_t sample;
@@ -131,9 +135,8 @@ void I2SAudioSpeaker::player_task(void *params) {
 
   while (true) {
     if (this_speaker->buffer_queue_ != nullptr) {
-      int ret = xStreamBufferReceive(this_speaker->buffer_queue_, &sample, wordsize, 1);
-      if (ret == pdPASS) {
-        ESP_LOGW(TAG, "%d", sample);
+      int ret = xStreamBufferReceive(this_speaker->buffer_queue_, &sample, wordsize, portMAX_DELAY );
+      if (ret == wordsize) {
         if (!is_playing) {
           event.type = TaskEventType::PLAYING;
           xQueueSend(this_speaker->event_queue_, &event, 10 / portTICK_PERIOD_MS);
@@ -143,30 +146,22 @@ void I2SAudioSpeaker::player_task(void *params) {
         if (!this_speaker->use_16bit_mode_) {
           sample = (sample << 16) | (sample & 0xFFFF);
         }
-        esp_err_t err = i2s_write(port, &sample, wordsize, &bytes_written, (10 / portTICK_PERIOD_MS));
+        esp_err_t err = i2s_write(this_speaker->parent_->get_port(), &sample, wordsize, &bytes_written, portMAX_DELAY);
         if (err != ESP_OK) {
           event.type = TaskEventType::WARNING;
           event.err = err;
           event.stopped = ++error_count >= 5;
-          if (xQueueSend(this_speaker->event_queue_, &event, 10 / portTICK_PERIOD_MS) != pdTRUE) {
-            ESP_LOGW(TAG, "Failed to send WARNING event");
-          }
+          xQueueSend(this_speaker->event_queue_, &event, 10 / portTICK_PERIOD_MS);
         } else if (bytes_written != wordsize) {
           event.type = TaskEventType::WARNING;
           event.err = ESP_FAIL;
+          event.data = bytes_written;
           event.stopped = ++error_count >= 5;
-          if (xQueueSend(this_speaker->event_queue_, &event, 10 / portTICK_PERIOD_MS) != pdTRUE) {
-            ESP_LOGW(TAG, "Failed to send WARNING event");
-          }
+          xQueueSend(this_speaker->event_queue_, &event, 10 / portTICK_PERIOD_MS);
         } else {
           error_count = 0;
         }
-        if (error_count >= 5) {
-          while (true) {
-            vTaskDelay(10 / portTICK_PERIOD_MS);
-          }
-        }
-      } else if (ret == pdFALSE) {
+      } else if (ret == 0) {
         if (!is_playing) {
           event.type = TaskEventType::PAUSING;
           xQueueSend(this_speaker->event_queue_, &event, 10 / portTICK_PERIOD_MS);
@@ -174,13 +169,19 @@ void I2SAudioSpeaker::player_task(void *params) {
         }
 
         vTaskDelay(1);
+      } else {
+        event.type = TaskEventType::WARNING;
+        event.err = ESP_FAIL;
+        event.data = -ret;
+
+        event.stopped = ++error_count >= 5;
+        xQueueSend(this_speaker->event_queue_, &event, 10 / portTICK_PERIOD_MS);
       }
     }
   }
 }
 
 void I2SAudioSpeaker::finish() {
-  ESP_LOGE(TAG, "Finishing I2S Audio Speaker");
   if (this->is_failed())
     return;
   if (this->state_ == speaker::STATE_STOPPED)
@@ -201,15 +202,17 @@ void I2SAudioSpeaker::stop_() {
   if (this->has_buffered_data()) {
     return;
   }
+
+  vTaskSuspend(this->player_task_handle_);
+  // make sure the speaker has no voltage on the pins before closing the I2S poort
+  size_t bytes_written;
+  uint32_t sample = 0;
+  i2s_write(this->parent_->get_port(), &sample, 4, &bytes_written, (10 / portTICK_PERIOD_MS));
+
   i2s_zero_dma_buffer(this->parent_->get_port());
   i2s_driver_uninstall(this->parent_->get_port());
 
-  vTaskDelete(this->player_task_handle_);
-  this->task_created_ = false;
-  this->player_task_handle_ = nullptr;
-  this->flush();
   this->parent_->unlock();
-  ESP_LOGD(TAG, "Stopped I2S Audio Speaker");
   this->set_state_(speaker::STATE_STOPPED);
 }
 
@@ -224,14 +227,22 @@ void I2SAudioSpeaker::loop() {
       if (xQueueReceive(this->event_queue_, &event, 0) == pdTRUE) {
         switch (event.type) {
           case TaskEventType::PLAYING:
+            ESP_LOGI(TAG, "PLAYING");
             this->status_clear_warning();
-            ESP_LOGW(TAG, "PLAYING");
             break;
           case TaskEventType::PAUSING:
             ESP_LOGW(TAG, "PAUSING");
             break;
           case TaskEventType::WARNING:
-            ESP_LOGW(TAG, "Error writing to I2S: %s", esp_err_to_name(event.err));
+            if (event.data < 0) {
+              ESP_LOGW(TAG, "Read data size mismatch: %d instead of %d", -event.data, wordsize_());
+
+            } else if (event.data > 0) {
+              ESP_LOGW(TAG, "Write data size mismatch: %d instead of %d", event.data, wordsize_());
+
+            } else {
+              ESP_LOGW(TAG, "Error writing to I2S: %s", esp_err_to_name(event.err));
+            }
             this->status_set_warning();
             break;
         }
@@ -281,11 +292,11 @@ static const LogString *state_to_string(speaker::State state) {
 void I2SAudioSpeaker::set_state_(speaker::State state) {
   speaker::State old_state = this->state_;
   this->state_ = state;
-  ESP_LOGD(TAG, "State changed from %s to %s", LOG_STR_ARG(state_to_string(old_state)),
+  ESP_LOGV(TAG, "State changed from %s to %s", LOG_STR_ARG(state_to_string(old_state)),
            LOG_STR_ARG(state_to_string(state)));
 }
 
 }  // namespace i2s_audio
 }  // namespace esphome
 
-// #endif  // USE_ESP32
+#endif  // USE_ESP32

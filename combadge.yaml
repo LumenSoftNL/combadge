@@ -63,6 +63,7 @@ speaker:
     id: echo_speaker
     dac_type: external
     i2s_dout_pin: GPIO22
+    use_16bit_mode: true
     mode: mono
 
 rtttl:

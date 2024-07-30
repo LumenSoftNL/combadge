@@ -1,6 +1,6 @@
 #pragma once
 
-// #ifdef USE_ESP32
+#ifdef USE_ESP32
 
 #include "../i2s_audio.h"
 
@@ -28,6 +28,7 @@ enum class TaskEventType : uint8_t {
 struct TaskEvent {
   TaskEventType type;
   esp_err_t err;
+  int8_t data{0};
   bool stopped {false};
 };
 
@@ -43,7 +44,7 @@ class I2SAudioSpeaker : public Component, public speaker::Speaker, public I2SAud
   void set_internal_dac_mode(i2s_dac_mode_t mode) { this->internal_dac_mode_ = mode; }
 #endif
   void set_external_dac_channels(uint8_t channels) { this->external_dac_channels_ = channels; }
-  void use_16bit_mode(bool mode) { this->use_16bit_mode_ = mode; }
+  void set_16bit_mode(bool mode) { this->use_16bit_mode_ = mode; }
 
   void start() override;
   void stop() override;
@@ -60,7 +61,7 @@ class I2SAudioSpeaker : public Component, public speaker::Speaker, public I2SAud
   void stop_();
   void watch_();
   void set_state_(speaker::State state);
-
+  uint8_t wordsize_() { return this->use_16bit_mode_ ? 2 : 4; }
   static void player_task(void *params);
 
   TaskHandle_t player_task_handle_{nullptr};
@@ -68,7 +69,6 @@ class I2SAudioSpeaker : public Component, public speaker::Speaker, public I2SAud
   QueueHandle_t event_queue_{nullptr};
 
   uint8_t dout_pin_{0};
-  bool task_created_{false};
   bool use_16bit_mode_{false};
 
 #if SOC_I2S_SUPPORTS_DAC
@@ -80,4 +80,4 @@ class I2SAudioSpeaker : public Component, public speaker::Speaker, public I2SAud
 }  // namespace i2s_audio
 }  // namespace esphome
 
-// #endif  // USE_ESP32
+#endif  // USE_ESP32
