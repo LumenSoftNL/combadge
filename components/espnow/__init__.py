@@ -17,7 +17,7 @@ ESPNowInterface = espnow_ns.class_(
     "ESPNowInterface", cg.Component, cg.Parented.template(ESPNowComponent)
 )
 
-ESPNowSendTrigger = espnow_ns.class_("ESPNowSendTrigger", automation.Trigger.template())
+ESPNowSentTrigger = espnow_ns.class_("ESPNowSentTrigger", automation.Trigger.template())
 ESPNowReceiveTrigger = espnow_ns.class_(
     "ESPNowReceiveTrigger", automation.Trigger.template()
 )
@@ -60,7 +60,7 @@ CONFIG_SCHEMA = cv.Schema(
         ),
         cv.Optional(CONF_ON_SENT): automation.validate_automation(
             {
-                cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(ESPNowSendTrigger),
+                cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(ESPNowSentTrigger),
             }
         ),
         cv.Optional(CONF_ON_NEW_PEER): automation.validate_automation(
@@ -73,16 +73,11 @@ CONFIG_SCHEMA = cv.Schema(
     cv.only_on_esp32,
 ).extend(cv.COMPONENT_SCHEMA)
 
-
 async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
 
-    if CORE.is_esp8266:
-        cg.add_library("ESP8266WiFi", None)
-    elif CORE.is_esp32 and CORE.using_arduino:
-        cg.add_library("WiFi", None)
-    elif CORE.is_rp2040:
+    if CORE.is_esp32 and CORE.using_arduino:
         cg.add_library("WiFi", None)
 
     cg.add_define("USE_ESPNOW")
@@ -110,6 +105,20 @@ async def to_code(config):
 
     for conf in config.get(CONF_PEERS, []):
         cg.add(var.add_peer(conf.as_hex))
+
+
+PROTOCOL_SCHEMA = cv.Schema(
+    {
+        cv.GenerateID(CONF_ESPNOW): cv.use_id(ESPNowComponent),
+    },
+    cv.only_on_esp32,
+).extend(cv.COMPONENT_SCHEMA)
+
+
+async def register_protocol(var, config):
+    now = await cg.get_variable(config[CONF_ESPNOW])
+    cg.add(now.register_protocol(var))
+
 
 
 @automation.register_action(

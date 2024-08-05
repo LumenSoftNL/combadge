@@ -5,21 +5,18 @@
 #include "esphome/core/automation.h"
 #include "esphome/core/component.h"
 #include "esphome/core/helpers.h"
-
+#include "espnow_packet.h"
 #include <esp_now.h>
 
 #include <array>
 #include <memory>
 #include <queue>
 #include <vector>
+#include <mutex>
 
 namespace esphome {
 namespace espnow {
 
-typedef uint8_t espnow_addr_t[6];
-
-static const uint64_t ESPNOW_BROADCAST_ADDR = 0xFFFFFFFFFFFF;
-static espnow_addr_t ESPNOW_ADDR_SELF = {0};
 
 class ESPNowComponent;
 
@@ -34,87 +31,15 @@ template<typename T, typename Container = std::deque<T> > class iterable_queue :
   const_iterator end() const { return this->c.end(); }
 };
 
-class ESPNowPacket {
- public:
-  ESPNowPacket(const uint64_t mac_address, const std::vector<uint8_t> data);
-  ESPNowPacket(const uint64_t mac_address, const uint8_t *data, size_t len);
-
-  uint64_t mac_address() { return this->mac_address_ == 0 ? ESPNOW_BROADCAST_ADDR : this->mac_address_; }
-
-  void mac_bytes(uint8_t *mac_addres) {
-    uint64_t mac = this->mac_address_ == 0 ? ESPNOW_BROADCAST_ADDR : this->mac_address_;
-    uint64_to_addr(mac, mac_addres);
-  }
-
-  std::vector<uint8_t> data() { return data_; }
-
-  uint8_t get_counter() { return send_count_; }
-  void inc_counter() {
-    send_count_ = send_count_ + 1;
-    if (send_count_ > 5 && !is_holded_) {
-      set_holding();
-    }
-  }
-  void reset_counter() {
-    send_count_ = 0;
-    del_holding();
-  }
-
-  void is_broadcast(bool value) { this->is_broadcast_ = value; }
-  bool is_broadcast() const { return this->is_broadcast_; }
-
-  void timestamp(uint32_t value) { this->timestamp_ = value; }
-  uint32_t timestamp() { return this->timestamp_; }
-
-  void rssi(int8_t rssi) { this->rssi_ = rssi; }
-  int8_t rssi() { return this->rssi_; }
-
-  bool is_holded() { return this->is_holded_; }
-  void set_holding() { this->is_holded_ = true; }
-  void del_holding() { this->is_holded_ = false; }
-
-
-  static void uint64_to_addr(uint64_t address, uint8_t *bd_addr) {
-    *(bd_addr + 0) = (address >> 40) & 0xff;
-    *(bd_addr + 1) = (address >> 32) & 0xff;
-    *(bd_addr + 2) = (address >> 24) & 0xff;
-    *(bd_addr + 3) = (address >> 16) & 0xff;
-    *(bd_addr + 4) = (address >> 8) & 0xff;
-    *(bd_addr + 5) = (address >> 0) & 0xff;
-  }
-
-  static uint64_t addr_to_uint64(const uint8_t *address) {
-    uint64_t u = 0;
-    u |= uint64_t(*(address + 0) & 0xFF) << 40;
-    u |= uint64_t(*(address + 1) & 0xFF) << 32;
-    u |= uint64_t(*(address + 2) & 0xFF) << 24;
-    u |= uint64_t(*(address + 3) & 0xFF) << 16;
-    u |= uint64_t(*(address + 4) & 0xFF) << 8;
-    u |= uint64_t(*(address + 5) & 0xFF) << 0;
-    return u;
-  }
-
- protected:
-  uint64_t mac_address_{0};
-  std::vector<uint8_t> data_;
-
-  uint8_t send_count_{0};
-  bool is_broadcast_{false};
-  uint32_t timestamp_{0};
-  uint8_t rssi_{0};
-
-  bool is_holded_{false};
-};
-
 class ESPNowInterface : public Component, public Parented<ESPNowComponent> {
  public:
   ESPNowInterface() {};
 
   void setup() override;
 
-  virtual bool on_package_received(ESPNowPacket *package) { return false; };
-  virtual bool on_package_send(ESPNowPacket *package) { return false; };
-  virtual bool on_new_peer(ESPNowPacket *package) { return false; };
+  virtual bool on_receive(ESPNowPacket *packet) { return false; };
+  virtual bool on_sent(ESPNowPacket *packet) { return false; };
+  virtual bool on_new_peer(ESPNowPacket *packet) { return false; };
 };
 
 class ESPNowComponent : public Component {
@@ -127,7 +52,7 @@ class ESPNowComponent : public Component {
   static void on_data_received(const uint8_t *addr, const uint8_t *data, int size);
 #endif
 
-  static void on_data_send(const uint8_t *mac_addr, esp_now_send_status_t status);
+  static void on_data_sent(const uint8_t *mac_addr, esp_now_send_status_t status);
 
   void dump_config() override;
   float get_setup_priority() const override { return -100; }
@@ -137,25 +62,20 @@ class ESPNowComponent : public Component {
   void loop() override;
   void set_wifi_channel(uint8_t channel) { this->wifi_channel_ = channel; }
 
-  ESPNowPacket *send_package(const uint64_t mac_address, const uint8_t *data, int len) {
-    //  ESPNowPackage * package = new ESPNowPackage(mac_address, data, len);
-    //  return this->send_package(package);
-    return nullptr;
+  ESPNowPacket *write(const uint64_t mac_address, const uint8_t *data, uint8_t len) {
+    return this->write( new ESPNowPacket(mac_address, data, len));
   }
 
-  ESPNowPacket *send_package(const uint64_t mac_address, const std::vector<uint8_t> data) {
-    ESPNowPacket *package = new ESPNowPacket(mac_address, data);
-    return this->send_package(package);
+  ESPNowPacket *write(const uint64_t mac_address, const std::vector<uint8_t> data) {
+    return this->write(new ESPNowPacket(mac_address, (uint8_t*) data.data(), (uint8_t) data.size()));
   }
 
-  ESPNowPacket *send_package(ESPNowPacket *package);
+  ESPNowPacket *write(ESPNowPacket * packet);
 
-  void add_on_package_send_callback(std::function<void(ESPNowPacket *)> &&callback) {
-    this->on_package_send_.add(std::move(callback));
-  }
+  void add_on_sent_callback(std::function<void(ESPNowPacket *)> &&callback) { this->on_sent_.add(std::move(callback)); }
 
-  void add_on_package_receive_callback(std::function<void(ESPNowPacket *)> &&callback) {
-    this->on_package_receved_.add(std::move(callback));
+  void add_on_receive_callback(std::function<void(ESPNowPacket *)> &&callback) {
+    this->on_receive_.add(std::move(callback));
   }
 
   void add_on_peer_callback(std::function<void(ESPNowPacket *)> &&callback) {
@@ -172,33 +92,73 @@ class ESPNowComponent : public Component {
 
   void set_auto_add_peer(bool value) { this->auto_add_peer_ = value; }
 
-  void on_package_received(ESPNowPacket *package);
-  void on_package_send(ESPNowPacket *package);
-  void on_new_peer(ESPNowPacket *package);
+  void on_receive(ESPNowPacket *packet);
+  void on_sent(ESPNowPacket *packet);
+  void on_new_peer(ESPNowPacket *packet);
 
-  void log_error_(std::string msg, esp_err_t err);
+  bool send_queue_empty() {
+    return uxQueueMessagesWaiting(this->send_queue_)==0;
+  }
+  size_t send_queue_size() {
+    return uxQueueMessagesWaiting(this->send_queue_);
+  }
+
+  ESPNowPacket *first_send_packet(bool pop = false) {
+
+    if (this->send_queue_empty()) {
+      return nullptr;
+    }
+
+    //xQueueSendToFront(xQueue, pvItemToQueue, xTicksToWait)
+    ESPNowPacket *packet;
+
+    xQueuePeek(this->send_queue_,  &packet, 1);
+
+    if (pop) {
+      xQueueReceive(this->send_queue_, &packet, 1);
+      delete packet;
+      packet = nullptr;
+    }
+    return packet;
+  }
+
+  ESPNowPacket *next_send_packet() {
+    if (this->send_queue_empty()) {
+      return nullptr;
+    }
+
+    ESPNowPacket *packet;
+    xQueueReceive(this->send_queue_,  &packet, 1);
+    xQueueSendToBack(this->send_queue_, &packet, 1);
+
+    return this->first_send_packet();
+  }
 
  protected:
   void unHold_send_(uint64_t mac);
-  void push_receive_package_(ESPNowPacket *package) { this->receive_queue_.push(std::move(package)); }
+  void push_receive_packet_(ESPNowPacket *packet) { this->receive_queue_.push(std::move(packet)); }
   bool validate_channel_(uint8_t channel);
   uint8_t wifi_channel_{0};
   bool auto_add_peer_{false};
 
-  CallbackManager<void(ESPNowPacket *)> on_package_send_;
-  CallbackManager<void(ESPNowPacket *)> on_package_receved_;
+  CallbackManager<void(ESPNowPacket *)> on_sent_;
+  CallbackManager<void(ESPNowPacket *)> on_receive_;
   CallbackManager<void(ESPNowPacket *)> on_new_peer_;
 
-  iterable_queue<ESPNowPacket *> receive_queue_{};
-  iterable_queue<ESPNowPacket *> send_queue_{};
+  static void send_task(void *params);
+  TaskHandle_t send_task_handle_{nullptr};
+
+  std::queue<ESPNowPacket *> receive_queue_{};
+  QueueHandle_t send_queue_{};
 
   std::vector<ESPNowInterface *> protocols_{};
   std::vector<uint64_t> peers_{};
 
-  SemaphoreHandle_t send_lock_ = NULL;
-
-  bool can_send_{true};
-};
+  Mutex send_lock_;
+  void lock_() { this->send_lock_.lock(); }
+  bool try_lock_() { return this->send_lock_.try_lock(); }
+  void unlock_() { this->send_lock_.unlock(); }
+ };
 
 template<typename... Ts> class SendAction : public Action<Ts...>, public Parented<ESPNowComponent> {
  public:
@@ -216,10 +176,10 @@ template<typename... Ts> class SendAction : public Action<Ts...>, public Parente
     auto mac = this->mac_.value(x...);
 
     if (this->static_) {
-      this->parent_->send_package(mac, this->data_static_);
+      this->parent_->write(mac, this->data_static_);
     } else {
       auto val = this->data_func_(x...);
-      this->parent_->send_package(mac, val);
+      this->parent_->write(mac, val);
     }
   }
 
@@ -254,17 +214,17 @@ template<typename... Ts> class DelPeerAction : public Action<Ts...>, public Pare
   TemplatableValue<uint64_t, Ts...> mac_{};
 };
 
-class ESPNowSendTrigger : public Trigger<ESPNowPacket *> {
+class ESPNowSentTrigger : public Trigger<ESPNowPacket *> {
  public:
-  explicit ESPNowSendTrigger(ESPNowComponent *parent) {
-    parent->add_on_package_send_callback([this](ESPNowPacket *value) { this->trigger(value); });
+  explicit ESPNowSentTrigger(ESPNowComponent *parent) {
+    parent->add_on_sent_callback([this](ESPNowPacket *value) { this->trigger(value); });
   }
 };
 
 class ESPNowReceiveTrigger : public Trigger<ESPNowPacket *> {
  public:
   explicit ESPNowReceiveTrigger(ESPNowComponent *parent) {
-    parent->add_on_package_receive_callback([this](ESPNowPacket *value) { this->trigger(value); });
+    parent->add_on_receive_callback([this](ESPNowPacket *value) { this->trigger(value); });
   }
 };
 
