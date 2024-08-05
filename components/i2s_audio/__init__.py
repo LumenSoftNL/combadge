@@ -3,7 +3,7 @@ import esphome.final_validate as fv
 import esphome.codegen as cg
 
 from esphome import pins
-from esphome.const import CONF_ID
+from esphome.const import CONF_ID, CONF_CHANNEL, CONF_SAMPLE_RATE, CONF_INTERNAL
 from esphome.components.esp32 import get_esp32_variant
 from esphome.components.esp32.const import (
     VARIANT_ESP32,
@@ -25,9 +25,12 @@ CONF_I2S_LRCLK_PIN = "i2s_lrclk_pin"
 CONF_I2S_AUDIO = "i2s_audio"
 CONF_I2S_AUDIO_ID = "i2s_audio_id"
 
+CONF_BITS_PER_SAMPLE = "bits_per_sample"
 CONF_I2S_MODE = "i2s_mode"
 CONF_PRIMARY = "primary"
 CONF_SECONDARY = "secondary"
+CONF_EXTERNAL = "external"
+
 
 i2s_audio_ns = cg.esphome_ns.namespace("i2s_audio")
 I2SAudioComponent = i2s_audio_ns.class_("I2SAudioComponent", cg.Component)
@@ -40,7 +43,10 @@ i2s_mode_t = cg.global_ns.enum("i2s_mode_t")
 I2S_MODE_OPTIONS = {
     CONF_PRIMARY: i2s_mode_t.I2S_MODE_MASTER,  # NOLINT
     CONF_SECONDARY: i2s_mode_t.I2S_MODE_SLAVE,  # NOLINT
+    CONF_INTERNAL: i2s_mode_t.I2S_MODE_MASTER,  # NOLINT
+    CONF_EXTERNAL: i2s_mode_t.I2S_MODE_SLAVE,  # NOLINT
 }
+
 
 # https://github.com/espressif/esp-idf/blob/master/components/soc/{variant}/include/soc/soc_caps.h
 I2S_PORTS = {
@@ -49,6 +55,53 @@ I2S_PORTS = {
     VARIANT_ESP32S3: 2,
     VARIANT_ESP32C3: 1,
 }
+
+i2s_channel_fmt_t = cg.global_ns.enum("i2s_channel_fmt_t")
+CHANNELS = {
+    "left": i2s_channel_fmt_t.I2S_CHANNEL_FMT_ONLY_LEFT,
+    "right": i2s_channel_fmt_t.I2S_CHANNEL_FMT_ONLY_RIGHT,
+    "stereo": i2s_channel_fmt_t.I2S_CHANNEL_FMT_RIGHT_LEFT,
+}
+
+i2s_bits_per_sample_t = cg.global_ns.enum("i2s_bits_per_sample_t")
+BITS_PER_SAMPLE = {
+    8: i2s_bits_per_sample_t.I2S_BITS_PER_SAMPLE_8BIT,
+    16: i2s_bits_per_sample_t.I2S_BITS_PER_SAMPLE_16BIT,
+    32: i2s_bits_per_sample_t.I2S_BITS_PER_SAMPLE_32BIT,
+}
+
+INTERNAL_ADC_VARIANTS = [VARIANT_ESP32]
+PDM_VARIANTS = [VARIANT_ESP32, VARIANT_ESP32S3]
+
+validate_bits = cv.float_with_unit("bits", "bit")
+
+
+def I2SAudioSchema(component_id, sample_rate, channels, bits_per_sample):
+    return cv.Schema(
+        {
+            cv.GenerateID(): cv.declare_id(component_id),
+            cv.GenerateID(CONF_I2S_AUDIO_ID): cv.use_id(I2SAudioComponent),
+            cv.Optional(CONF_CHANNEL, default=channels): cv.enum(CHANNELS),
+            cv.Optional(CONF_SAMPLE_RATE, default=sample_rate): cv.int_range(min=1),
+            cv.Optional(CONF_BITS_PER_SAMPLE, default=bits_per_sample): cv.All(
+                validate_bits, cv.enum(BITS_PER_SAMPLE)
+            ),
+            cv.Optional(CONF_I2S_MODE, default=CONF_INTERNAL): cv.enum(
+                I2S_MODE_OPTIONS, lower=True
+            ),
+        }
+    ).extend(cv.COMPONENT_SCHEMA)
+
+
+async def register_i2saudio(var, config):
+    await cg.register_component(var, config)
+    await cg.register_parented(var, config[CONF_I2S_AUDIO_ID])
+
+    cg.add(var.set_i2s_mode(config[CONF_I2S_MODE]))
+    cg.add(var.set_channel(config[CONF_CHANNEL]))
+    cg.add(var.set_sample_rate(config[CONF_SAMPLE_RATE]))
+    cg.add(var.set_bits_per_sample(config[CONF_BITS_PER_SAMPLE]))
+
 
 CONFIG_SCHEMA = cv.Schema(
     {

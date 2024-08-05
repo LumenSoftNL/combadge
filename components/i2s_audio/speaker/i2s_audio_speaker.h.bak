@@ -43,6 +43,8 @@ class I2SAudioSpeaker : public Component, public speaker::Speaker, public I2SAud
 #if SOC_I2S_SUPPORTS_DAC
   void set_internal_dac_mode(i2s_dac_mode_t mode) { this->internal_dac_mode_ = mode; }
 #endif
+  void set_external_dac_channels(uint8_t channels) { this->external_dac_channels_ = channels; }
+  void set_16bit_mode(bool mode) { this->use_16bit_mode_ = mode; }
 
   void start() override;
   void stop() override;
@@ -52,8 +54,6 @@ class I2SAudioSpeaker : public Component, public speaker::Speaker, public I2SAud
   size_t play(const uint8_t *data, size_t length) override;
 
   bool has_buffered_data() const override;
-  size_t available_space() const override;
-
 
  protected:
   void start_();
@@ -73,7 +73,7 @@ class I2SAudioSpeaker : public Component, public speaker::Speaker, public I2SAud
 #if SOC_I2S_SUPPORTS_DAC
   i2s_dac_mode_t internal_dac_mode_{I2S_DAC_CHANNEL_DISABLE};
 #endif
-
+  uint8_t external_dac_channels_;
 };
 
 }  // namespace i2s_audio
