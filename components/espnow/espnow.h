@@ -112,10 +112,10 @@ class ESPNowComponent : public Component {
     //xQueueSendToFront(xQueue, pvItemToQueue, xTicksToWait)
     ESPNowPacket *packet;
 
-    xQueuePeek(this->send_queue_,  &packet, 1);
+    xQueuePeek(this->send_queue_,  &packet, 0);
 
     if (pop) {
-      xQueueReceive(this->send_queue_, &packet, 1);
+      xQueueReceive(this->send_queue_, &packet, 0);
       delete packet;
       packet = nullptr;
     }
@@ -128,11 +128,15 @@ class ESPNowComponent : public Component {
     }
 
     ESPNowPacket *packet;
-    xQueueReceive(this->send_queue_,  &packet, 1);
-    xQueueSendToBack(this->send_queue_, &packet, 1);
+    xQueueReceive(this->send_queue_,  &packet, 0);
+    xQueueSendToBack(this->send_queue_, &packet, 0);
 
     return this->first_send_packet();
   }
+
+  void lock() { this->send_lock_.lock(); }
+  bool try_lock() { return this->send_lock_.try_lock(); }
+  void unlock() { this->send_lock_.unlock(); }
 
  protected:
   void unHold_send_(uint64_t mac);
@@ -155,9 +159,7 @@ class ESPNowComponent : public Component {
   std::vector<uint64_t> peers_{};
 
   Mutex send_lock_;
-  void lock_() { this->send_lock_.lock(); }
-  bool try_lock_() { return this->send_lock_.try_lock(); }
-  void unlock_() { this->send_lock_.unlock(); }
+
  };
 
 template<typename... Ts> class SendAction : public Action<Ts...>, public Parented<ESPNowComponent> {

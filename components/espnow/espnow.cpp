@@ -281,19 +281,18 @@ void ESPNowComponent::on_data_received(const uint8_t *addr, const uint8_t *data,
 }
 
 void ESPNowComponent::send_task(void *params) {
-  ESPNowComponent *this_ = (ESPNowComponent *) params;
   for (;;) {
-    if (this_->send_queue_empty()) {
+    if (global_esp_now->send_queue_empty()) {
       App.feed_wdt();
       delayMicroseconds(half_period_usec * 2);
       continue;
     }
-    ESPNowPacket *packet = this_->first_send_packet();
+    ESPNowPacket *packet = global_esp_now->first_send_packet();
     if (packet != nullptr) {
-      if (this_->try_lock_()) {
+      if (global_esp_now->try_lock()) {
         ESPNowPacket *front = packet;
         while (packet->is_holded) {
-          packet = this_->next_send_packet();
+          packet = global_esp_now->next_send_packet();
           if (front == packet || packet == nullptr) {
             break;
           }
@@ -304,13 +303,14 @@ void ESPNowComponent::send_task(void *params) {
           packet->retry();
           if (packet->retrys == 6) {
             ESP_LOGW(TAG, "To many send retries. Stopping sending until new packet received.");
+            global_esp_now->unlock();
           } else {
             esp_err_t err = esp_now_send((uint8_t *) packet->mac, packet->data, packet->size);
 
             if (err != ESP_OK) {
               ESP_LOGI(TAG, "Packet send failed (%p.%d) Error: %s", packet, packet->retrys, esp_err_to_name(err));
-              this_->next_send_packet();
-              this_->unlock_();
+              global_esp_now->next_send_packet();
+              global_esp_now->unlock();
               //          } else if (packet->is_broadcast()) {
               //            this_->next_send_packet();
               //            ESP_LOGI(TAG, "Packet (%p.%d) broadcasted.", packet, packet->get_counter());
@@ -320,7 +320,7 @@ void ESPNowComponent::send_task(void *params) {
             }
           }
         } else {
-          this_->unlock_();
+          global_esp_now->unlock();
         }
         continue;
       }
@@ -351,7 +351,7 @@ void ESPNowComponent::on_data_sent(const uint8_t *mac_addr, esp_now_send_status_
     global_esp_now->first_send_packet(true);
   }
 
-  global_esp_now->unlock_();
+  global_esp_now->unlock();
 }
 
 ESPNowComponent *global_esp_now = nullptr;
