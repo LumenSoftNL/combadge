@@ -25,7 +25,7 @@ void I2SAudioMicrophone::setup() {
     }
   } else
 #endif
-      if (this->pdm_) {
+  if (this->pdm_) {
     if (this->parent_->get_port() != I2S_NUM_0) {
       ESP_LOGE(TAG, "PDM only works on I2S0!");
       this->mark_failed();
@@ -210,6 +210,31 @@ void I2SAudioMicrophone::loop() {
       break;
   }
 }
+
+static const LogString *state_to_string(microphone::State state) {
+  switch (state) {
+    case microphone::STATE_STOPPED:
+      return LOG_STR("STATE_STOPPED");
+    case microphone::STATE_STARTING:
+      return LOG_STR("STATE_STARTING");
+    case microphone::STATE_RUNNING:
+      return LOG_STR("STATE_RUNNING");
+    case microphone::STATE_STOPPING:
+      return LOG_STR("STATE_STOPPING");
+    default:
+      return LOG_STR("UNKNOWN");
+  }
+};
+
+void I2SAudioMicrophone::set_state_(microphone::State state) {
+  microphone::State old_state = this->state_;
+  this->state_ = state;
+  ESP_LOGV(TAG, "State changed from %s to %s", LOG_STR_ARG(state_to_string(old_state)),
+           LOG_STR_ARG(state_to_string(state)));
+}
+
+
+
 
 }  // namespace i2s_audio
 }  // namespace esphome
