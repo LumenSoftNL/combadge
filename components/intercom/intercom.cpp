@@ -21,9 +21,20 @@ static const size_t SEND_BUFFER_SIZE = 128;
 
 float InterCom::get_setup_priority() const { return setup_priority::AFTER_CONNECTION; }
 
-void InterCom::setup() { ESP_LOGCONFIG(TAG, "Setting up Voice Assistant..."); }
+void InterCom::setup() {
+  ESP_LOGCONFIG(TAG, "Setting up Voice Assistant...");
+  this->parent_->register_protocol(this);
+}
 
-bool InterCom::on_package_received(espnow::ESPNowPacket *package) { return false; }
+bool InterCom::on_receive(espnow::ESPNowPacket *packet) {
+  if (this->state_ == State::STREAMING_SPEAKER) {
+    this->speaker_->play(packet->data, packet->size);
+    this->set_timeout("playing", 2000, [this]() { this->set_mode(Mode::NONE); });
+  } else {
+    this->set_mode(Mode::SPEAKER);
+  }
+  return true;
+}
 
 bool InterCom::allocate_buffers_() {
   if (this->read_buffer_ != nullptr) {
@@ -47,12 +58,6 @@ bool InterCom::allocate_buffers_() {
     return false;
   }
 
-  this->output_buffer_ = RingBuffer::create(BUFFER_SIZE);
-  if (this->output_buffer_ == nullptr) {
-    ESP_LOGW(TAG, "Could not allocate ring buffer");
-    return false;
-  }
-
   return true;
 }
 
@@ -63,10 +68,7 @@ void InterCom::clear_buffers_() {
   if (this->input_buffer_ != nullptr) {
     input_buffer_->reset();
   }
-
-  if (this->output_buffer_ != nullptr) {
-    this->output_buffer_->reset();
-  }
+  this->speaker_->flush();
 }
 
 void InterCom::deallocate_buffers_() {
@@ -79,10 +81,6 @@ void InterCom::deallocate_buffers_() {
     this->input_buffer_ = nullptr;
   }
 
-  if (this->output_buffer_ != nullptr) {
-    this->output_buffer_->reset();
-    this->output_buffer_ = nullptr;
-  }
 #ifdef USE_ESP_ADF
   if (this->vad_instance_ != nullptr) {
     vad_destroy(this->vad_instance_);
@@ -91,9 +89,9 @@ void InterCom::deallocate_buffers_() {
 #endif
 }
 
-void InterCom::set_direction(Direction direction) {
-  if (direction == Direction::MICROPHONE) {
-    ESP_LOGI(TAG, "Switch to Microphone");
+void InterCom::set_mode(Mode direction) {
+  if (direction == Mode::MICROPHONE) {
+    ESP_LOGI(TAG, "Switch to Microphone mode");
     switch (this->state_) {
       case State::STARTING_MICROPHONE:
       case State::STREAMING_MICROPHONE:
@@ -101,7 +99,6 @@ void InterCom::set_direction(Direction direction) {
       case State::STOPPING_MICROPHONE:
         this->set_state_(State::STOPPING_MICROPHONE, State::START_MICROPHONE);
         break;
-
       case State::STARTING_SPEAKER:
       case State::STREAMING_SPEAKER:
         this->set_state_(State::STOP_SPEAKER, State::START_MICROPHONE);
@@ -112,8 +109,8 @@ void InterCom::set_direction(Direction direction) {
       default:
         this->set_state_(State::START_MICROPHONE);
     }
-  } else if (direction == Direction::SPEAKER) {
-    ESP_LOGI(TAG, "Switch to Microphone");
+  } else if (direction == Mode::SPEAKER) {
+    ESP_LOGI(TAG, "Switch to Speaker mode");
 
     switch (this->state_) {
       case State::STARTING_MICROPHONE:
@@ -157,11 +154,11 @@ void InterCom::set_direction(Direction direction) {
   }
 }
 
-bool InterCom::is_running(Direction direction) {
+bool InterCom::is_running(Mode direction) {
   switch (direction) {
-    case Direction::MICROPHONE:
+    case Mode::MICROPHONE:
       return (this->mic_ != nullptr && this->mic_->is_running());
-    case Direction::SPEAKER:
+    case Mode::SPEAKER:
       return (this->speaker_ != nullptr && this->speaker_->is_running());
     default:
       return this->state_ != State::IDLE;
@@ -169,13 +166,6 @@ bool InterCom::is_running(Direction direction) {
 };
 
 void InterCom::loop() {
-  if ((this->parent_ != nullptr && !this->parent_->is_ready()) || this->state_ == State::IDLE) {
-    if (this->high_freq_.is_high_frequency()) {
-      this->high_freq_.stop();
-    }
-    return;
-  }
-
   if (!this->allocate_buffers_()) {
     this->status_set_error("Failed to allocate buffers");
     return;
@@ -186,8 +176,8 @@ void InterCom::loop() {
       ESP_LOGD(TAG, "Starting Microphone");
       input_buffer_->reset();
       this->mic_->start();
-      this->high_freq_.start();
-      this->set_state_(State::STARTING_MICROPHONE, State::STREAMING_MICROPHONE);
+      //this->high_freq_.start();
+      this->set_state_(State::STARTING_MICROPHONE, State::STREAMING_MICROPHONE );
       break;
     }
     case State::STARTING_MICROPHONE:
@@ -200,7 +190,6 @@ void InterCom::loop() {
       break;
 
     case State::STOP_MICROPHONE:
-      this->read_microphone_();  // send the last bytes in the ring buffer.
       if (this->mic_->is_running()) {
         this->mic_->stop();
         this->set_state_(State::STOPPING_MICROPHONE);
@@ -209,47 +198,36 @@ void InterCom::loop() {
       }
       break;
 
-    case State::STOPPING_MICROPHONE: {
+    case State::STOPPING_MICROPHONE:
       if (this->mic_->is_stopped()) {
         this->set_state_(this->desired_state_);
       }
       break;
-    }
 
     case State::START_SPEAKER:
       ESP_LOGD(TAG, "Starting Speaker");
       this->speaker_->start();
-      this->high_freq_.start();
+     // this->high_freq_.start();
       this->set_state_(State::STARTING_SPEAKER, State::STREAMING_SPEAKER);
       break;
 
-    case State::STARTING_SPEAKER: {
+    case State::STARTING_SPEAKER:
       if (this->speaker_->is_running()) {
         this->set_state_(this->desired_state_);
       }
       break;
 
-      case State::STREAMING_SPEAKER: {
-        ssize_t received_len = 0;
-        this->set_timeout("playing", 2000, [this]() { this->set_state_(State::STOP_SPEAKER, State::IDLE); });
-        this->write_speaker_();
-        break;
-      }
-      case State::STOP_SPEAKER:
-        this->write_speaker_();
-        if (this->output_buffer_->available() > 0) {
-          break;
-        }
+    case State::STREAMING_SPEAKER:
+      break;
 
-        ESP_LOGD(TAG, "Speaker has finished outputting all audio");
-        this->speaker_->finish();
-        this->cancel_timeout("playing");
-    }
-      this->set_state_(State::IDLE, State::IDLE);
+    case State::STOP_SPEAKER:
+      this->speaker_->finish();
+      this->cancel_timeout("playing");
+      this->set_state_(State::STOPPING_SPEAKER);
       break;
 
     case State::STOPPING_SPEAKER:
-      if (this->speaker_->is_running()) {
+      if (this->speaker_->is_stopped()) {
         this->set_state_(this->desired_state_);
       }
       break;
@@ -259,11 +237,11 @@ void InterCom::loop() {
   }
 }
 
-int InterCom::read_microphone_() {
+void InterCom::read_microphone_() {
   size_t bytes_read = 0;
   if (this->mic_->is_running()) {  // Read audio into input buffer
-    bytes_read = this->mic_->read((int16_t *) this->read_buffer_, INPUT_BUFFER_SIZE);
-    if (bytes_read != 0) {
+    bytes_read = this->mic_->read((int16_t *) this->read_buffer_, SEND_BUFFER_SIZE);
+    if (bytes_read > 0) {
 #ifdef USE_ESP_ADFXX
 
       vad_state_t vad_state = vad_process(this->vad_instance_, this->read_buffer_, SAMPLE_RATE_HZ, VAD_FRAME_LENGTH_MS);
@@ -282,29 +260,8 @@ int InterCom::read_microphone_() {
         }
       }
 #endif
-      //  Write audio into ring buffer
-      this->input_buffer_->write((void *) this->read_buffer_, bytes_read);
+      this->parent_->write(0, this->read_buffer_, bytes_read);
     }
-  }
-
-  size_t available = this->input_buffer_->available();
-  while (available > 0) {
-    available = std::min<size_t>(available, SEND_BUFFER_SIZE);
-    size_t read_bytes = this->input_buffer_->read((void *) this->read_buffer_, available, 0);
-    ESP_LOGD(TAG, "Send packet size: %d, %d", available, read_bytes);
-    this->parent_->send_package(0, this->read_buffer_, read_bytes);
-    available = this->input_buffer_->available();
-  }
-
-  return bytes_read;
-}
-
-void InterCom::write_speaker_() {
-  size_t write_chunk = std::min<size_t>(this->output_buffer_->available(), INPUT_BUFFER_SIZE);
-  write_chunk = std::min<size_t>(write_chunk, this->speaker_->available_space());
-  if (write_chunk > 0) {
-    write_chunk = this->output_buffer_->read((void *) this->read_buffer_, write_chunk, 0);
-    this->speaker_->play((uint8_t *) this->read_buffer_, write_chunk);
   }
 }
 

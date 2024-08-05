@@ -5,16 +5,16 @@ from esphome.const import (
     CONF_ID,
     CONF_MICROPHONE,
     CONF_SPEAKER,
-    CONF_STATE,
+    CONF_MODE,
     CONF_ON_IDLE,
 )
 from esphome import automation
-from esphome.automation import register_action, register_condition
+from esphome.automation import register_action
 from esphome.components import microphone, speaker, espnow
 from esphome.core import CORE
 
 
-DEPENDENCIES = ["microphone", "speaker"]
+DEPENDENCIES = ["microphone", "speaker", "espnow"]
 
 CODEOWNERS = ["@LumenSoftNL"]
 
@@ -34,26 +34,25 @@ CONF_VOLUME_MULTIPLIER = "volume_multiplier"
 intercom_ns = cg.esphome_ns.namespace("intercom")
 InterCom = intercom_ns.class_("InterCom", cg.Component, espnow.ESPNowInterface)
 
-DirectionAction = intercom_ns.class_(
-    "DirectionAction", automation.Action, cg.Parented.template(InterCom)
+ModeAction = intercom_ns.class_(
+    "ModeAction", automation.Action, cg.Parented.template(InterCom)
 )
 
-MicRunningCondition = intercom_ns.class_(
-    "isCondition", automation.Condition, cg.Parented.template(InterCom)
+IsModeCondition = intercom_ns.class_(
+    "IsModeCondition", automation.Condition, cg.Parented.template(InterCom)
 )
 
-Direction = intercom_ns.enum("Direction", is_class=True)
-DIRECTION_ENUM = {
-    "NONE": Direction.NONE,
-    "MICROPHONE": Direction.MICROPHONE,
-    "SPEAKER": Direction.SPEAKER,
+Mode = intercom_ns.enum("Mode", is_class=True)
+MODE_ENUM = {
+    "NONE": Mode.NONE,
+    "MICROPHONE": Mode.MICROPHONE,
+    "SPEAKER": Mode.SPEAKER,
 }
 
 CONFIG_SCHEMA = cv.All(
     cv.Schema(
         {
             cv.GenerateID(): cv.declare_id(InterCom),
-            cv.GenerateID(espnow.CONF_ESPNOW): cv.use_id(espnow.ESPNowComponent),
             cv.GenerateID(CONF_MICROPHONE): cv.use_id(microphone.Microphone),
             cv.GenerateID(CONF_SPEAKER): cv.use_id(speaker.Speaker),
             cv.Optional(CONF_VAD_THRESHOLD): cv.All(
@@ -72,13 +71,15 @@ CONFIG_SCHEMA = cv.All(
             cv.Optional(CONF_ON_ERROR): automation.validate_automation(single=True),
             cv.Optional(CONF_ON_IDLE): automation.validate_automation(single=True),
         }
-    ).extend(cv.COMPONENT_SCHEMA),
+    ).extend(espnow.PROTOCOL_SCHEMA),
 )
 
 
 async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
+
+    await espnow.register_protocol(var, config)
 
     mic = await cg.get_variable(config[CONF_MICROPHONE])
     cg.add(var.set_microphone(mic))
@@ -123,20 +124,32 @@ async def to_code(config):
 INTERCOM_ACTION_SCHEMA = cv.maybe_simple_value(
     {
         cv.GenerateID(): cv.use_id(InterCom),
-        cv.Required(CONF_STATE): cv.enum(DIRECTION_ENUM, upper=True),
+        cv.Required(CONF_MODE): cv.enum(MODE_ENUM, upper=True),
     },
-    key=CONF_STATE,
+    key=CONF_MODE,
 )
 
 
 @register_action(
-    "intercom.state",
-    DirectionAction,
+    "intercom.mode",
+    ModeAction,
     INTERCOM_ACTION_SCHEMA,
 )
 async def intercom_action_code(config, action_id, template_arg, args):
     var = cg.new_Pvariable(action_id, template_arg)
     await cg.register_parented(var, config[CONF_ID])
-    cg.add(var.set_state(config[CONF_STATE]))
+    cg.add(var.set_mode(config[CONF_MODE]))
 
+    return var
+
+
+@automation.register_condition(
+    "intercom.is_mode",
+    IsModeCondition,
+    INTERCOM_ACTION_SCHEMA
+)
+async def display_is_displaying_page_to_code(config, condition_id, template_arg, args):
+    var = cg.new_Pvariable(condition_id, template_arg)
+    await cg.register_parented(var, config[CONF_ID])
+    cg.add(var.set_mode(config[CONF_MODE]))
     return var

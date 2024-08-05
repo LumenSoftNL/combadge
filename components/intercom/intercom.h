@@ -21,7 +21,7 @@
 namespace esphome {
 namespace intercom {
 
-enum class Direction {
+enum class Mode {
   NONE,
   MICROPHONE,
   SPEAKER,
@@ -47,13 +47,13 @@ class InterCom : public espnow::ESPNowInterface {
   void setup() override;
   void loop() override;
   float get_setup_priority() const override;
-  bool on_package_received(espnow::ESPNowPacket *package);
+  bool on_receive(espnow::ESPNowPacket *packet);
 
   void set_microphone(microphone::Microphone *mic) { this->mic_ = mic; }
   void set_speaker(speaker::Speaker *speaker) { this->speaker_ = speaker; }
 
-  void set_direction(Direction direction);
-  bool is_running(Direction direction);
+  void set_mode(Mode mode);
+  bool is_running(Mode mode);
 
 #ifdef USE_ESP_ADF
   void set_vad_threshold(uint8_t vad_threshold) { this->vad_threshold_ = vad_threshold; }
@@ -76,10 +76,9 @@ class InterCom : public espnow::ESPNowInterface {
   void deallocate_buffers_();
   uint8_t *read_buffer_;
   std::unique_ptr<RingBuffer> input_buffer_;
-  std::unique_ptr<RingBuffer> output_buffer_;
 
-  int read_microphone_();
-  void write_speaker_();
+  void read_microphone_();
+
   microphone::Microphone *mic_{nullptr};
   speaker::Speaker *speaker_{nullptr};
 
@@ -108,25 +107,23 @@ class InterCom : public espnow::ESPNowInterface {
 #endif
 };
 
-template<typename... Ts> class DirectionAction : public Action<Ts...>, public Parented<InterCom> {
+template<typename... Ts> class ModeAction : public Action<Ts...>, public Parented<InterCom> {
   TEMPLATABLE_VALUE(std::string, wake_word);
-
  public:
-  void play(Ts... x) override { this->parent_->set_direction(this->state_); }
-
-  void set_state(Direction state) { this->state_ = state; }
+  void set_mode(Mode mode) { this->mode_ = mode; }
+  void play(Ts... x) override { this->parent_->set_mode(this->mode_); }
 
  protected:
-  Direction state_{Direction::NONE};
+  Mode mode_{Mode::NONE};
 };
 
-template<typename... Ts> class IsRunningCondition : public Condition<Ts...>, public Parented<InterCom> {
+template<typename... Ts> class IsModeCondition : public Condition<Ts...>, public Parented<InterCom> {
  public:
-  void set_state(Direction state) { this->state_ = state; }
-  bool check(Ts... x) override { return this->parent_->is_running(this->state_); }
+  void set_mode(Mode mode) { this->mode_ = mode; }
+  bool check(Ts... x) override { return this->parent_->is_running(this->mode_); }
 
  protected:
-  Direction state_{Direction::NONE};
+  Mode mode_{Mode::NONE};
 };
 
 extern InterCom *global_intercom;  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
