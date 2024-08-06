@@ -38,7 +38,7 @@ class ESPNowInterface : public Component, public Parented<ESPNowComponent> {
   void setup() override;
 
   virtual bool on_receive(ESPNowPacket *packet) { return false; };
-  virtual bool on_sent(ESPNowPacket *packet) { return false; };
+  virtual bool on_sent(ESPNowPacket *packet, bool status) { return false; };
   virtual bool on_new_peer(ESPNowPacket *packet) { return false; };
 };
 
@@ -72,7 +72,7 @@ class ESPNowComponent : public Component {
 
   ESPNowPacket *write(ESPNowPacket * packet);
 
-  void add_on_sent_callback(std::function<void(ESPNowPacket *)> &&callback) { this->on_sent_.add(std::move(callback)); }
+  void add_on_sent_callback(std::function<void(ESPNowPacket *, bool status)> &&callback) { this->on_sent_.add(std::move(callback)); }
 
   void add_on_receive_callback(std::function<void(ESPNowPacket *)> &&callback) {
     this->on_receive_.add(std::move(callback));
@@ -93,7 +93,7 @@ class ESPNowComponent : public Component {
   void set_auto_add_peer(bool value) { this->auto_add_peer_ = value; }
 
   void on_receive(ESPNowPacket *packet);
-  void on_sent(ESPNowPacket *packet);
+  void on_sent(ESPNowPacket *packet, bool status);
   void on_new_peer(ESPNowPacket *packet);
   bool send_queue_empty() {
     return uxQueueMessagesWaiting(this->send_queue_)==0;
@@ -115,7 +115,7 @@ class ESPNowComponent : public Component {
   uint8_t wifi_channel_{0};
   bool auto_add_peer_{false};
 
-  CallbackManager<void(ESPNowPacket *)> on_sent_;
+  CallbackManager<void(ESPNowPacket *, bool)> on_sent_;
   CallbackManager<void(ESPNowPacket *)> on_receive_;
   CallbackManager<void(ESPNowPacket *)> on_new_peer_;
 
@@ -183,10 +183,10 @@ template<typename... Ts> class DelPeerAction : public Action<Ts...>, public Pare
   TemplatableValue<uint64_t, Ts...> mac_{};
 };
 
-class ESPNowSentTrigger : public Trigger<ESPNowPacket *> {
+class ESPNowSentTrigger : public Trigger<ESPNowPacket *, bool> {
  public:
   explicit ESPNowSentTrigger(ESPNowComponent *parent) {
-    parent->add_on_sent_callback([this](ESPNowPacket *value) { this->trigger(value); });
+    parent->add_on_sent_callback([this](ESPNowPacket *value, bool status) { this->trigger(value, status); });
   }
 };
 

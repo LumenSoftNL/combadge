@@ -100,7 +100,7 @@ async def to_code(config):
     for conf in config.get(CONF_ON_NEW_PEER, []):
         trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
         await automation.build_automation(
-            trigger, [(ESPNowPacketPtrConst, "it")], conf
+            trigger, [(ESPNowPacketPtrConst, "it"), (bool, "status")], conf
         )
 
     for conf in config.get(CONF_PEERS, []):

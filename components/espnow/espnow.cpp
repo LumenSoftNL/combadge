@@ -180,13 +180,13 @@ void ESPNowComponent::on_receive(ESPNowPacket *packet) {
   this->on_receive_.call(packet);
 }
 
-void ESPNowComponent::on_sent(ESPNowPacket *packet) {
+void ESPNowComponent::on_sent(ESPNowPacket *packet, bool status) {
   for (auto *protocol : this->protocols_) {
-    if (protocol->on_sent(packet)) {
+    if (protocol->on_sent(packet, status)) {
       return;
     }
   }
-  this->on_sent_.call(packet);
+  this->on_sent_.call(packet, status);
 }
 
 void ESPNowComponent::on_new_peer(ESPNowPacket *packet) {
@@ -275,58 +275,59 @@ void ESPNowComponent::send_task(void *params) {
   ESPNowComponent *this_ = (ESPNowComponent *) params;
   TaskHandle_t task = this_->send_task_handle_;
   uint32_t state;
-  ESPNowPacket *packet;
-  ESP_LOGE(TAG, ">>>> Start send task method. <<<<");
+  ESPNowPacket packet;
   xTaskNotifyStateClear(task);
   for (;;) {
     xTaskNotifyAndQuery(task, 0, eNoAction, &state);
-    if (this_->send_queue_empty() || state == 0) {
-      
-      continue;
-    }
-
-    xQueueReceive(this_->send_queue_, packet, 0);
-    packet->retry();
-    if (packet->retrys == 6) {
-      ESP_LOGW(TAG, "To many send retries. Packet dropped.");
-    } else {
-      packet->timestamp = std::time(nullptr);
-      xQueueSendToFront(this_->send_queue_, packet, 1);
-      xTaskNotifyGive(task);
-      esp_err_t err = esp_now_send((uint8_t *) packet->mac, packet->data, packet->size);
-
-      if (err != ESP_OK) {
-        ESP_LOGI(TAG, "Packet send failed (%p.%d) Error: %s", packet, packet->retrys, esp_err_to_name(err));
-        xTaskNotifyStateClear(task);
+    if (state == 1) {
+      vTaskDelay( 10 / portTICK_PERIOD_MS );
+    } else if(xQueueReceive(this_->send_queue_, &packet, 10 / portTICK_PERIOD_MS) == pdTRUE ) {
+      packet.retry();
+      if (packet.retrys == 6) {
+//        ESP_LOGW(TAG, "To many send retries. Packet dropped.");
       } else {
-        ESP_LOGI(TAG, "Send Packet (%p.%d). Wait for conformation.", packet, packet->retrys);
+        packet.timestamp = std::time(nullptr);
+        xQueueSendToFront(this_->send_queue_, &packet, 10 / portTICK_PERIOD_MS);
+        xTaskNotifyGive(task);
+        esp_err_t err = esp_now_send((uint8_t *) packet.mac, packet.data, packet.size);
+
+        if (err != ESP_OK) {
+//          ESP_LOGI(TAG, "Packet send failed (%d) Error: %s", packet.retrys, esp_err_to_name(err));
+          xTaskNotifyStateClear(task);
+        } else {
+//          ESP_LOGI(TAG, "Send Packet (%d). Wait for conformation.", packet.retrys);
+          this_->set_timeout("espnow_send_timeout", 10, [task]() {
+            xTaskNotifyStateClear(task);
+          });
+        }
       }
     }
   }
 }
 
 void ESPNowComponent::on_data_sent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  ESPNowPacket *packet;
-  xQueueReceive(global_esp_now->send_queue_, packet, 0);
-  if (packet == nullptr) {
-    return;
+  ESPNowPacket packet;
+  ESP_LOGI(TAG, " ^ Sent state: %d", status);
+  global_esp_now->cancel_timeout("espnow_send_timeout");
+  if (xQueueReceive(global_esp_now->send_queue_, &packet, 10 / portTICK_PERIOD_MS) == pdTRUE ) {
+    if (status != ESP_OK) {
+      ESP_LOGE(TAG, "sent packet failed");
+    } else if (std::memcmp(packet.mac, mac_addr, 6) != 0) {
+      ESP_LOGE(TAG, " Invalid mac address.");
+      ESP_LOGW(TAG, "expected: %02X:%02X:%02X:%02X:%02X:%02X", packet.mac[0], packet.mac[1], packet.mac[2],
+              packet.mac[3], packet.mac[4], packet.mac[5]);
+      ESP_LOGW(TAG, "returned: %02X:%02X:%02X:%02X:%02X:%02X", mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3],
+              mac_addr[4], mac_addr[5]);
+    } else {
+      ESP_LOGE(TAG, "Confirm sent (%d)", packet.retrys);
+      xTaskNotifyStateClear(global_esp_now->send_task_handle_);
+      global_esp_now->on_sent(&packet, true);
+      return;
+    }
+    global_esp_now->on_sent(&packet, false);
+    xQueueSendToFront(global_esp_now->send_queue_, &packet, 10 / portTICK_PERIOD_MS);
   }
-
-  if (status != ESP_OK) {
-    ESP_LOGE(TAG, "sent packet failed");
-  } else if (std::memcmp(packet->mac, mac_addr, 6) != 0) {
-    ESP_LOGE(TAG, "on_data_sent Invalid mac address.");
-    ESP_LOGW(TAG, "expected: %02X:%02X:%02X:%02X:%02X:%02X", packet->mac[0], packet->mac[1], packet->mac[2],
-             packet->mac[3], packet->mac[4], packet->mac[5]);
-    ESP_LOGW(TAG, "returned: %02X:%02X:%02X:%02X:%02X:%02X", mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3],
-             mac_addr[4], mac_addr[5]);
-  } else {
-    ESP_LOGE(TAG, "Confirm sent (%p.%d). %s", packet, packet->retrys, esp_err_to_name(status));
-
-    global_esp_now->on_sent(packet);
-    return;
-  }
-  xQueueSendToFront(global_esp_now->send_queue_, packet, 1);
+  xTaskNotifyStateClear(global_esp_now->send_task_handle_);
 }
 
 ESPNowComponent *global_esp_now = nullptr;

@@ -66,7 +66,11 @@ struct ESPNowPacket {
       uint8_t is_broadcast : 1;
     };
   };
-
+  inline ESPNowPacket() ESPHOME_ALWAYS_INLINE {
+    memset( &data, 0x00, sizeof(data) );
+    settings = 0;
+    mac64 = 0;
+  }
   inline ESPNowPacket(const uint64_t mac_address, const uint8_t *udata, uint8_t isize) ESPHOME_ALWAYS_INLINE : settings(0) {
     mac64 = mac_address == 0 ? ESPNOW_BROADCAST_ADDR : mac_address;
 
