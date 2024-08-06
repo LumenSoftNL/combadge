@@ -87,14 +87,9 @@ struct ESPNowPacket {
 
 
   void retry() {
-    retrys = retrys + 1;
-    if (this->retrys == 5 && !this->is_holded) {
-      this->is_holded = 1;
+    if (this->retrys < 7 ) {
+      retrys = retrys + 1;
     }
-  }
-  void clear_retrys() {
-    this->retrys = 0;
-    this->is_holded = 0;
   }
 
   inline std::string addr_to_str() {

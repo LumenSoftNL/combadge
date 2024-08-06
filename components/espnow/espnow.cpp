@@ -272,17 +272,16 @@ ESPNowPacket *ESPNowComponent::write(ESPNowPacket *packet) {
 }
 
 void ESPNowComponent::send_task(void *params) {
-//  ESPNowComponent *this_ = (ESPNowComponent *) params;
-//  TaskHandle_t task = this_->send_task_handle_;
-//  uint32_t state;
-//  ESPNowPacket *packet;
+  ESPNowComponent *this_ = (ESPNowComponent *) params;
+  TaskHandle_t task = this_->send_task_handle_;
+  uint32_t state;
+  ESPNowPacket *packet;
   ESP_LOGE(TAG, ">>>> Start send task method. <<<<");
-//  xTaskNotifyStateClear(task);
+  xTaskNotifyStateClear(task);
   for (;;) {
-/*
     xTaskNotifyAndQuery(task, 0, eNoAction, &state);
     if (this_->send_queue_empty() || state == 0) {
-      App.feed_wdt();
+      
       continue;
     }
 
@@ -303,8 +302,6 @@ void ESPNowComponent::send_task(void *params) {
         ESP_LOGI(TAG, "Send Packet (%p.%d). Wait for conformation.", packet, packet->retrys);
       }
     }
-*/
-  //  App.feed_wdt();
   }
 }
 
