@@ -132,7 +132,7 @@ void I2SAudioSpeaker::player_task(void *params) {
 
   while (true) {
     if (this_speaker->buffer_queue_ != nullptr) {
-      int ret = xStreamBufferReceive(this_speaker->buffer_queue_, &sample, wordsize, 0 );
+      int ret = xStreamBufferReceive(this_speaker->buffer_queue_, &sample, wordsize, 10 / portTICK_PERIOD_MS );
       if (ret == wordsize) {
         if (!is_playing) {
           event.type = TaskEventType::PLAYING;
@@ -143,7 +143,7 @@ void I2SAudioSpeaker::player_task(void *params) {
         if (!this_speaker->use_16bit_mode_) {
           sample = (sample << 16) | (sample & 0xFFFF);
         }
-        esp_err_t err = i2s_write(this_speaker->parent_->get_port(), &sample, wordsize, &bytes_written, 0);
+        esp_err_t err = i2s_write(this_speaker->parent_->get_port(), &sample, wordsize, &bytes_written,  10 / portTICK_PERIOD_MS);
         if (err != ESP_OK) {
           event.type = TaskEventType::WARNING;
           event.err = err;
