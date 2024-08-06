@@ -63,9 +63,7 @@ struct ESPNowPacket {
       uint8_t rssi;
 
       uint8_t retrys : 3;
-      uint8_t reserved : 1;
       uint8_t is_broadcast : 1;
-      uint8_t is_holded : 1;
     };
   };
 

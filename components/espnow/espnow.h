@@ -95,48 +95,18 @@ class ESPNowComponent : public Component {
   void on_receive(ESPNowPacket *packet);
   void on_sent(ESPNowPacket *packet);
   void on_new_peer(ESPNowPacket *packet);
-
   bool send_queue_empty() {
     return uxQueueMessagesWaiting(this->send_queue_)==0;
   }
-  size_t send_queue_size() {
+  bool send_queue_full() {
+    return uxQueueSpacesAvailable(this->send_queue_)==0;
+  }
+  size_t send_queue_used() {
     return uxQueueMessagesWaiting(this->send_queue_);
   }
-
-  ESPNowPacket *first_send_packet(bool pop = false) {
-
-    if (this->send_queue_empty()) {
-      return nullptr;
-    }
-
-    //xQueueSendToFront(xQueue, pvItemToQueue, xTicksToWait)
-    ESPNowPacket *packet;
-
-    xQueuePeek(this->send_queue_,  &packet, 0);
-
-    if (pop) {
-      xQueueReceive(this->send_queue_, &packet, 0);
-      delete packet;
-      packet = nullptr;
-    }
-    return packet;
+  size_t send_queue_free() {
+    return uxQueueSpacesAvailable(this->send_queue_);
   }
-
-  ESPNowPacket *next_send_packet() {
-    if (this->send_queue_empty()) {
-      return nullptr;
-    }
-
-    ESPNowPacket *packet;
-    xQueueReceive(this->send_queue_,  &packet, 0);
-    xQueueSendToBack(this->send_queue_, &packet, 0);
-
-    return this->first_send_packet();
-  }
-
-  void lock() { this->send_lock_.lock(); }
-  bool try_lock() { return this->send_lock_.try_lock(); }
-  void unlock() { this->send_lock_.unlock(); }
 
  protected:
   void unHold_send_(uint64_t mac);
@@ -157,9 +127,6 @@ class ESPNowComponent : public Component {
 
   std::vector<ESPNowInterface *> protocols_{};
   std::vector<uint64_t> peers_{};
-
-  Mutex send_lock_;
-
  };
 
 template<typename... Ts> class SendAction : public Action<Ts...>, public Parented<ESPNowComponent> {
