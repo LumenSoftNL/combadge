@@ -3,8 +3,10 @@
 #include "esphome/core/automation.h"
 #include "esphome/core/component.h"
 #include "esphome/core/helpers.h"
+#include "esphome/core/preferences.h"
 
-#include "../espnow/esp_now_component.h"
+#include "../espnow/espnow.h"
+#include "variables.h"
 
 #include <array>
 #include <memory>
@@ -72,10 +74,26 @@ bool checkBadgeID(std::vector< unsigned uint8_t > code) {
 }
 
 
-class NowTalkComponent  : public Component, public ESPNowListener {
+class NowTalkClient  : public PollingComponent, public ESPNowProtocol {
  public:
-  bool on_packet_received(ESPNowPacket *packet) override;
-  bool on_packet_send(ESPNowPacket *packet) override;
+  void setup() override;
+  void on_receive(ESPNowPacket &packet) override;
+  void on_sent(ESPNowPacket &packet, bool status) override;
+
+  uint32_t get_protocol_id() override { return 0x547c6b; }
+  std::string get_protocol_name() override { return "NowTalk Intergration"; }
+ protected:
+  void load_config_(bool clear = false);
+  void save_config_();
+  std::string get_value_(std::string data, char separator, uint8_t index);
+
+  ESPPreferenceObject cfg_;
+  nowTalkConfig config_; //
+
+  nowtalk_t circbuf[QUEUE_SIZE] = {};
+
+  std::string inputString_ = "";     // a String to hold incoming data
+  bool stringComplete_ = false; // whether the string is complete
 };
 
 
