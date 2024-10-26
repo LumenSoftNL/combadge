@@ -18,18 +18,7 @@ DEPENDENCIES = ["microphone", "speaker", "espnow"]
 
 CODEOWNERS = ["@LumenSoftNL"]
 
-CONF_ON_START = "on_start"
-CONF_ON_END = "on_end"
-CONF_ON_ERROR = "on_error"
-
-CONF_SILENCE_DETECTION = "silence_detection"
-CONF_USE_WAKE_WORD = "use_wake_word"
 CONF_VAD_THRESHOLD = "vad_threshold"
-
-CONF_AUTO_GAIN = "auto_gain"
-CONF_NOISE_SUPPRESSION_LEVEL = "noise_suppression_level"
-CONF_VOLUME_MULTIPLIER = "volume_multiplier"
-
 
 intercom_ns = cg.esphome_ns.namespace("intercom")
 InterCom = intercom_ns.class_("InterCom", cg.Component, espnow.ESPNowInterface)
@@ -58,18 +47,6 @@ CONFIG_SCHEMA = cv.All(
             cv.Optional(CONF_VAD_THRESHOLD): cv.All(
                 cv.requires_component("esp_adf"), cv.only_with_esp_idf, cv.uint8_t
             ),
-            cv.Optional(CONF_NOISE_SUPPRESSION_LEVEL, default=0): cv.int_range(0, 4),
-            cv.Optional(CONF_AUTO_GAIN, default="0dBFS"): cv.All(
-                cv.float_with_unit("decibel full scale", "(dBFS|dbfs|DBFS)"),
-                cv.int_range(0, 31),
-            ),
-            cv.Optional(CONF_VOLUME_MULTIPLIER, default=1.0): cv.float_range(
-                min=0.0, min_included=False
-            ),
-            cv.Optional(CONF_ON_START): automation.validate_automation(single=True),
-            cv.Optional(CONF_ON_END): automation.validate_automation(single=True),
-            cv.Optional(CONF_ON_ERROR): automation.validate_automation(single=True),
-            cv.Optional(CONF_ON_IDLE): automation.validate_automation(single=True),
         }
     ).extend(espnow.PROTOCOL_SCHEMA),
 )
@@ -89,34 +66,6 @@ async def to_code(config):
 
     if (vad_threshold := config.get(CONF_VAD_THRESHOLD)) is not None:
         cg.add(var.set_vad_threshold(vad_threshold))
-
-    cg.add(var.set_noise_suppression_level(config[CONF_NOISE_SUPPRESSION_LEVEL]))
-    cg.add(var.set_auto_gain(config[CONF_AUTO_GAIN]))
-    cg.add(var.set_volume_multiplier(config[CONF_VOLUME_MULTIPLIER]))
-
-    if CONF_ON_IDLE in config:
-        await automation.build_automation(
-            var.get_idle_trigger(),
-            [],
-            config[CONF_ON_IDLE],
-        )
-
-    if CONF_ON_START in config:
-        await automation.build_automation(
-            var.get_start_trigger(), [], config[CONF_ON_START]
-        )
-
-    if CONF_ON_END in config:
-        await automation.build_automation(
-            var.get_end_trigger(), [], config[CONF_ON_END]
-        )
-
-    if CONF_ON_ERROR in config:
-        await automation.build_automation(
-            var.get_error_trigger(),
-            [(cg.std_string, "code"), (cg.std_string, "message")],
-            config[CONF_ON_ERROR],
-        )
 
     cg.add_define("USE_INTERCOM")
 
