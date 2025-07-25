@@ -34,6 +34,12 @@ class InterCom : public Component, public espnow::ESPNowReceivedPacketHandler {
   void set_microphone_source(microphone::MicrophoneSource *mic_source) { this->mic_source_ = mic_source; }
   void set_speaker(speaker::Speaker *speaker) { this->speaker_ = speaker; }
 
+  void set_noise_suppression_level(uint8_t noise_suppression_level) {
+    this->noise_suppression_level_ = noise_suppression_level;
+  }
+  void set_auto_gain(uint8_t auto_gain) { this->auto_gain_ = auto_gain; }
+  void set_volume_multiplier(float volume_multiplier) { this->volume_multiplier_ = volume_multiplier; }
+
   void set_mode(Mode mode);
   bool is_in_mode(Mode mode);
 
@@ -50,7 +56,10 @@ class InterCom : public Component, public espnow::ESPNowReceivedPacketHandler {
   std::shared_ptr<RingBuffer> ring_buffer_;
   audio::AudioStreamInfo target_stream_info_;
 
-  Mode mode_{Mode::NONE};
+  Mode mode_{Mode::SPEAKER};
+  uint8_t noise_suppression_level_;
+  uint8_t auto_gain_;
+  float volume_multiplier_;
   bool wait_to_switch_{false};
   bool can_send_packet_{true};
 

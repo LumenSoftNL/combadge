@@ -42,12 +42,13 @@ void InterCom::setup() {
       ESP_LOGE(TAG, "Could not allocate ring buffer");
     }
   }
-  this->target_stream_info_ = audio::AudioStreamInfo(8, 1, 16000);
-
+  this->target_stream_info_ = audio::AudioStreamInfo(16, 1, 16000);
+  this->high_freq_.start();
 }
+
 void InterCom::speaker_start_() {
   this->speaker_->set_audio_stream_info(this->target_stream_info_);
-  this->speaker_->start();
+//  this->speaker_->start();
 }
 
 
@@ -57,14 +58,19 @@ void InterCom::set_mode(Mode direction) {
       this->mic_source_->stop();
       this->ring_buffer_->reset();
       this->wait_to_switch_ = true;
+      ESP_LOGI(TAG, "waiting for Speaker start");
+
     } else {
+      ESP_LOGI(TAG, "Speaker started");
       this->speaker_start_();
     }
   } else if (direction == Mode::MICROPHONE) {
     if (this->mode_ == Mode::SPEAKER && this->speaker_->is_running()) {
       this->speaker_->stop();
       this->wait_to_switch_ = true;
+      ESP_LOGI(TAG, "waiting for Mic start");
     } else {
+      ESP_LOGI(TAG, "Mic started");
       this->mic_source_->start();
     }
   } else {
@@ -95,19 +101,22 @@ bool InterCom::is_in_mode(Mode direction) {
 
 void InterCom::loop() {
   if (wait_to_switch_) {
-    if (!this->speaker_->is_stopped() && !this->mic_source_->is_stopped()) {
-      this->wait_to_switch_ = false;
-    }
+    if (!this->speaker_->is_stopped() || !this->mic_source_->is_stopped()) {
+      ESP_LOGI(TAG, "x");
 
+      return;
+    }
+    this->wait_to_switch_ = false;
     if (this->mode_ == Mode::MICROPHONE) {
+      ESP_LOGI(TAG, "Mic started in loop");
       this->mic_source_->start();
     }
     if (this->mode_ == Mode::SPEAKER) {
-
+      ESP_LOGI(TAG, "Speaker started in loop");
       this->speaker_start_();
     }
   }
-  if (this->mode_ == Mode::MICROPHONE && !this->mic_source_->is_running()) {
+  if (this->mode_ == Mode::MICROPHONE && this->mic_source_->is_running()) {
     this->read_microphone_();
   }
 }

@@ -15,7 +15,11 @@ DEPENDENCIES = ["microphone", "speaker", "espnow"]
 
 CODEOWNERS = ["@LumenSoftNL"]
 
-CONF_VAD_THRESHOLD = "vad_threshold"
+CONF_AUTO_GAIN = "auto_gain"
+CONF_NOISE_SUPPRESSION_LEVEL = "noise_suppression_level"
+CONF_VOLUME_MULTIPLIER = "volume_multiplier"
+CONF_SILENCE_DETECTION = "silence_detection"
+
 CONF_ESPNOW = "espnow"
 
 intercom_ns = cg.esphome_ns.namespace("intercom")
@@ -43,13 +47,21 @@ CONFIG_SCHEMA = cv.All(
             cv.Optional(
                 CONF_MICROPHONE, default={}
             ): microphone.microphone_source_schema(
-                min_bits_per_sample=8,
+                min_bits_per_sample=16,
                 max_bits_per_sample=16,
                 min_channels=1,
                 max_channels=1,
             ),
             cv.GenerateID(CONF_SPEAKER): cv.use_id(speaker.Speaker),
-            cv.GenerateID(CONF_ESPNOW): cv.use_id(espnow.ESPNowComponent),
+
+            cv.Optional(CONF_NOISE_SUPPRESSION_LEVEL, default=0): cv.int_range(0, 4),
+            cv.Optional(CONF_AUTO_GAIN, default="0dBFS"): cv.All(
+                cv.float_with_unit("decibel full scale", "(dBFS|dbfs|DBFS)"),
+                cv.int_range(0, 31),
+            ),
+            cv.Optional(CONF_VOLUME_MULTIPLIER, default=1.0): cv.float_range(
+                min=0.0, min_included=False
+            ),
 
         }
     ).extend(cv.COMPONENT_SCHEMA),
@@ -78,6 +90,10 @@ async def to_code(config):
 
     spkr = await cg.get_variable(config[CONF_SPEAKER])
     cg.add(var.set_speaker(spkr))
+
+    cg.add(var.set_noise_suppression_level(config[CONF_NOISE_SUPPRESSION_LEVEL]))
+    cg.add(var.set_auto_gain(config[CONF_AUTO_GAIN]))
+    cg.add(var.set_volume_multiplier(config[CONF_VOLUME_MULTIPLIER]))
 
     cg.add_define("USE_INTERCOM")
 

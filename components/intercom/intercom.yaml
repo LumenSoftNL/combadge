@@ -82,11 +82,10 @@ binary_sensor:
       - delayed_on_off: 70ms
     id: echo_button
     on_press:
-      - intercom.mode: none
-      - rtttl.play: "Intro:d=32,o=5,b=300:a,b,c"
+      #- intercom.mode: none
+      #- rtttl.play: "Intro:d=32,o=5,b=300:a,b,c"
       - intercom.mode: microphone
     on_release:
-      - intercom.mode: none
-      - rtttl.play: "Urgent:d=8,o=6,b=500:c,e,d7"
+      #- intercom.mode: none
+      # - rtttl.play: "Urgent:d=8,o=6,b=500:c,e,d7"
       - intercom.mode: speaker
-
