@@ -128,7 +128,7 @@ void InterCom::read_microphone_() {
   }
 }
 
-void InterCom::espnow_received_handler(const espnow::ESPNowRecvInfo &info, const uint8_t *data, uint8_t size) {
+bool InterCom::espnow_received_handler(const espnow::ESPNowRecvInfo &info, const uint8_t *data, uint8_t size) {
   if (this->mode_ == Mode::SPEAKER && !this->wait_to_switch_) {
     this->speaker_->play(data, size);
   }

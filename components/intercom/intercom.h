@@ -31,15 +31,14 @@ class InterCom : public Component, public espnow::ESPNowReceivedPacketHandler {
   void setup() override;
   void loop() override;
 
-  float get_setup_priority() const override;
-  bool espnow_received_handler(const espnow::ESPNowRecvInfo &info, const uint8_t *data, uint8_t size) override;
-
   void set_microphone_source(microphone::MicrophoneSource *mic_source) { this->mic_source_ = mic_source; }
   void set_speaker(speaker::Speaker *speaker) { this->speaker_ = speaker; }
 
   void set_mode(Mode mode);
   bool is_in_mode(Mode mode);
 
+  float get_setup_priority() const override;
+  bool espnow_received_handler(const espnow::ESPNowRecvInfo &info, const uint8_t *data, uint8_t size) override;
 
  protected:
   void read_microphone_();

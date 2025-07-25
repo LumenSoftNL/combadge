@@ -68,3 +68,25 @@ espnow:
     - 11:22:33:44:55:66
 
 intercom:
+
+
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO39
+      inverted: true
+    name: Button
+    disabled_by_default: true
+    entity_category: diagnostic
+    filters:
+      - delayed_on_off: 70ms
+    id: echo_button
+    on_press:
+      - intercom.mode: none
+      - rtttl.play: "Intro:d=32,o=5,b=300:a,b,c"
+      - intercom.mode: microphone
+    on_release:
+      - intercom.mode: none
+      - rtttl.play: "Urgent:d=8,o=6,b=500:c,e,d7"
+      - intercom.mode: speaker
+
