@@ -6,22 +6,20 @@ from esphome.const import (
     CONF_MICROPHONE,
     CONF_SPEAKER,
     CONF_MODE,
-    CONF_ON_IDLE,
 )
 from esphome import automation
 from esphome.automation import register_action
 from esphome.components import microphone, speaker, espnow
-from esphome.core import CORE
-
 
 DEPENDENCIES = ["microphone", "speaker", "espnow"]
 
 CODEOWNERS = ["@LumenSoftNL"]
 
 CONF_VAD_THRESHOLD = "vad_threshold"
+CONF_ESPNOW = "espnow"
 
 intercom_ns = cg.esphome_ns.namespace("intercom")
-InterCom = intercom_ns.class_("InterCom", cg.Component, espnow.ESPNowInterface)
+InterCom = intercom_ns.class_("InterCom", cg.Component, espnow.ESPNowReceivedPacketHandler)
 
 ModeAction = intercom_ns.class_(
     "ModeAction", automation.Action, cg.Parented.template(InterCom)
@@ -42,13 +40,32 @@ CONFIG_SCHEMA = cv.All(
     cv.Schema(
         {
             cv.GenerateID(): cv.declare_id(InterCom),
-            cv.GenerateID(CONF_MICROPHONE): cv.use_id(microphone.Microphone),
-            cv.GenerateID(CONF_SPEAKER): cv.use_id(speaker.Speaker),
-            cv.Optional(CONF_VAD_THRESHOLD): cv.All(
-                cv.requires_component("esp_adf"), cv.only_with_esp_idf, cv.uint8_t
+            cv.Optional(
+                CONF_MICROPHONE, default={}
+            ): microphone.microphone_source_schema(
+                min_bits_per_sample=8,
+                max_bits_per_sample=16,
+                min_channels=1,
+                max_channels=1,
             ),
+            cv.GenerateID(CONF_SPEAKER): cv.use_id(speaker.Speaker),
+            cv.GenerateID(CONF_ESPNOW): cv.use_id(espnow.ESPNowComponent),
+
         }
-    ).extend(espnow.PROTOCOL_SCHEMA),
+    ).extend(cv.COMPONENT_SCHEMA),
+)
+
+FINAL_VALIDATE_SCHEMA = cv.All(
+    cv.Schema(
+        {
+            cv.Optional(
+                CONF_MICROPHONE
+            ): microphone.final_validate_microphone_source_schema(
+                "InterCom", sample_rate=16000
+            ),
+        },
+        extra=cv.ALLOW_EXTRA,
+    ),
 )
 
 
@@ -56,16 +73,11 @@ async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
 
-    await espnow.register_protocol(var, config)
-
-    mic = await cg.get_variable(config[CONF_MICROPHONE])
-    cg.add(var.set_microphone(mic))
+    mic_source = await microphone.microphone_source_to_code(config[CONF_MICROPHONE])
+    cg.add(var.set_microphone_source(mic_source))
 
     spkr = await cg.get_variable(config[CONF_SPEAKER])
     cg.add(var.set_speaker(spkr))
-
-    if (vad_threshold := config.get(CONF_VAD_THRESHOLD)) is not None:
-        cg.add(var.set_vad_threshold(vad_threshold))
 
     cg.add_define("USE_INTERCOM")
 
@@ -93,7 +105,7 @@ async def intercom_action_code(config, action_id, template_arg, args):
 
 
 @automation.register_condition(
-    "intercom.is_mode",
+    "intercom.mode",
     IsModeCondition,
     INTERCOM_ACTION_SCHEMA
 )

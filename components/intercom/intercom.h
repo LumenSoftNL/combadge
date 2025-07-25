@@ -5,10 +5,12 @@
 #include "esphome/core/automation.h"
 #include "esphome/core/component.h"
 #include "esphome/core/helpers.h"
+#include "esphome/core/ring_buffer.h"
 
-#include "esphome/components/microphone/microphone.h"
+#include "esphome/components/audio/audio.h"
+#include "esphome/components/microphone/microphone_source.h"
 #include "esphome/components/speaker/speaker.h"
-#include "esphome/components/espnow/espnow.h"
+#include "esphome/components/espnow/espnow_component.h"
 
 #include <unordered_map>
 #include <vector>
@@ -22,33 +24,39 @@ enum class Mode {
   SPEAKER,
 };
 
-class InterCom : public Component, public espnow::ESPNowProtocol {
+class InterCom : public Component, public espnow::ESPNowReceivedPacketHandler {
  public:
   virtual ~InterCom();
+
   void setup() override;
   void loop() override;
-  float get_setup_priority() const override;
-  bool on_receive(espnow::ESPNowPacket &packet);
 
-  void set_microphone(microphone::Microphone *mic) { this->mic_ = mic; }
+  float get_setup_priority() const override;
+  bool espnow_received_handler(const espnow::ESPNowRecvInfo &info, const uint8_t *data, uint8_t size) override;
+
+  void set_microphone_source(microphone::MicrophoneSource *mic_source) { this->mic_source_ = mic_source; }
   void set_speaker(speaker::Speaker *speaker) { this->speaker_ = speaker; }
 
   void set_mode(Mode mode);
   bool is_in_mode(Mode mode);
 
-  uint32_t get_protocol_id() override { return 0x572674; }
-  std::string get_protocol_name() override { return "InterCom"; }
-
 
  protected:
   void read_microphone_();
+  void speaker_start_();
 
-  microphone::Microphone *mic_{nullptr};
+  microphone::MicrophoneSource *mic_source_{nullptr};
   speaker::Speaker *speaker_{nullptr};
+
+  std::shared_ptr<RingBuffer> ring_buffer_;
+  audio::AudioStreamInfo target_stream_info_;
+
   Mode mode_{Mode::NONE};
+  bool wait_to_switch_{false};
+  bool can_send_packet_{true};
 
   HighFrequencyLoopRequester high_freq_;
-  
+
 };
 
 template<typename... Ts> class ModeAction : public Action<Ts...>, public Parented<InterCom> {
@@ -69,7 +77,5 @@ template<typename... Ts> class IsModeCondition : public Condition<Ts...>, public
   Mode mode_{Mode::NONE};
 };
 
-extern InterCom *global_intercom;  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
-
 }  // namespace intercom
-}  // namespace esphome
+}

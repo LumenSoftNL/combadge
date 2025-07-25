@@ -10,98 +10,130 @@ namespace intercom {
 
 static const char *const TAG = "intercom";
 
-const size_t SEND_BUFFER_SIZE = 210;
+static const size_t SEND_BUFFER_SIZE = 210;
 
-InterCom::~InterCom() {
-#ifdef USE_ESP_ADF
-  if (this->vad_instance_ != nullptr) {
-    vad_destroy(this->vad_instance_);
-    this->vad_instance_ = nullptr;
-  }
-#endif
-}
+static const size_t SAMPLE_RATE_HZ = 16000;
 
-float InterCom::get_setup_priority() const { return setup_priority::AFTER_CONNECTION; }
+static const size_t RING_BUFFER_SAMPLES = 512 * SAMPLE_RATE_HZ / 1000;  // 512 ms * 16 kHz/ 1000 ms
+static const size_t RING_BUFFER_SIZE = RING_BUFFER_SAMPLES * sizeof(int16_t);
+static const size_t SEND_BUFFER_SAMPLES = 32 * SAMPLE_RATE_HZ / 1000;  // 32ms * 16kHz / 1000ms
+static const size_t RECEIVE_SIZE = 1024;
+static const size_t SPEAKER_BUFFER_SIZE = 16 * RECEIVE_SIZE;
+
+InterCom::~InterCom() {}
+
+float InterCom::get_setup_priority() const { return setup_priority::LATE - 10; }
 
 void InterCom::setup() {
-  ESP_LOGCONFIG(TAG, "Setting up Voice Assistant...");
-  this->parent_->register_protocol(this);
+  ESP_LOGCONFIG(TAG, "Setting up Voice Assistant");
+  espnow::global_esp_now->register_received_handler(this);
+  this->mic_source_->add_data_callback([this](const std::vector<uint8_t> &data) {
+    if (!this->wait_to_switch_) {
+      std::shared_ptr<RingBuffer> temp_ring_buffer = this->ring_buffer_;
+      if (this->ring_buffer_.use_count() > 1) {
+        temp_ring_buffer->write((void *) data.data(), data.size());
+      }
+    }
+  });
+
+  if (this->ring_buffer_.use_count() == 0) {
+    this->ring_buffer_ = RingBuffer::create(RING_BUFFER_SIZE);
+    if (this->ring_buffer_.use_count() == 0) {
+      ESP_LOGE(TAG, "Could not allocate ring buffer");
+    }
+  }
+  this->target_stream_info_ = audio::AudioStreamInfo(8, 1, 16000);
+
+}
+void InterCom::speaker_start_() {
+  this->speaker_->set_audio_stream_info(this->target_stream_info_);
+  this->speaker_->start();
 }
 
-bool InterCom::on_receive(espnow::ESPNowPacket &packet) {
-  if (this->mode_ == Mode::SPEAKER && this->speaker_ != nullptr &&
-      (this->mic_ == nullptr || this->mic_->is_stopped())) {
-    this->speaker_->play(packet.get_payload(), packet.size);
-    this->set_timeout("playing", 2000, [this]() { this->set_mode(Mode::NONE); });
-  } else {
-    this->set_mode(Mode::SPEAKER);
-  }
-  return true;
-}
 
 void InterCom::set_mode(Mode direction) {
-  this->mode_ = direction;
-  if (mode_ == Mode::SPEAKER) {
-    if (this->speaker_ == nullptr) {
-      this->mode_ = Mode::NONE;
+  if (direction == Mode::SPEAKER) {
+    if (this->mode_ == Mode::MICROPHONE && this->mic_source_->is_running()) {
+      this->mic_source_->stop();
+      this->ring_buffer_->reset();
+      this->wait_to_switch_ = true;
+    } else {
+      this->speaker_start_();
     }
-    if (this->mic_ != nullptr && this->mic_->is_running()) {
-      this->mic_->stop();
+  } else if (direction == Mode::MICROPHONE) {
+    if (this->mode_ == Mode::SPEAKER && this->speaker_->is_running()) {
+      this->speaker_->stop();
+      this->wait_to_switch_ = true;
+    } else {
+      this->mic_source_->start();
     }
-  } else if (this->mode_ == Mode::MICROPHONE) {
-    if (this->mic_ == nullptr) {
-      this->mode_ = Mode::NONE;
-    }
-    if (this->speaker_ != nullptr && this->speaker_->is_running()) {
-      this->speaker_->finish();
-    }
-
   } else {
-    if (this->mic_ != nullptr && this->mic_->is_running()) {
-      this->mic_->stop();
+    if (this->mode_ == Mode::MICROPHONE && this->mic_source_->is_running()) {
+      this->mic_source_->stop();
+      this->ring_buffer_->reset();
+      this->wait_to_switch_ = true;
     }
-    if (this->speaker_ != nullptr && this->speaker_->is_running()) {
-      this->speaker_->finish();
+    if (this->mode_ == Mode::SPEAKER && this->speaker_->is_running()) {
+      this->speaker_->stop();
+      this->wait_to_switch_ = true;
     }
   }
+
+  this->mode_ = direction;
 }
 
 bool InterCom::is_in_mode(Mode direction) {
   switch (direction) {
     case Mode::MICROPHONE:
-      return (this->mic_ != nullptr && this->mic_->is_running());
+      return (this->mic_source_->is_running());
     case Mode::SPEAKER:
-      return (this->speaker_ != nullptr && this->speaker_->is_running());
+      return (this->speaker_->is_running());
     default:
-      return (this->mic_ == nullptr || this->mic_->is_stopped()) &&
-             (this->speaker_ == nullptr || this->speaker_->is_stopped());
+      return (this->mic_source_->is_stopped() && this->speaker_->is_stopped());
   }
 };
 
 void InterCom::loop() {
-  if (this->mode_ == Mode::MICROPHONE) {
-    if (this->speaker_ != nullptr && this->speaker_->is_stopped()) {
-      if (this->mic_->is_stopped()) {
-        this->mic_->start();
-      }
+  if (wait_to_switch_) {
+    if (!this->speaker_->is_stopped() && !this->mic_source_->is_stopped()) {
+      this->wait_to_switch_ = false;
     }
-    if (this->mic_->is_running()) {  // Read audio into input buffer
-      this->read_microphone_();
+
+    if (this->mode_ == Mode::MICROPHONE) {
+      this->mic_source_->start();
     }
+    if (this->mode_ == Mode::SPEAKER) {
+
+      this->speaker_start_();
+    }
+  }
+  if (this->mode_ == Mode::MICROPHONE && !this->mic_source_->is_running()) {
+    this->read_microphone_();
   }
 }
 
 void InterCom::read_microphone_() {
   size_t bytes_read = 0;
   uint8_t buffer[SEND_BUFFER_SIZE];
-
-  bytes_read = this->mic_->read((int16_t *) &buffer, SEND_BUFFER_SIZE);
-  if (bytes_read > 0) {
-    this->send(0, (uint8_t *) &buffer, bytes_read);
+  if (this->can_send_packet_) {
+    size_t available = this->ring_buffer_->available();
+    if (available >= 60) {
+      size_t bytes_read = this->ring_buffer_->read((void *) &buffer, SEND_BUFFER_SIZE, 0);
+      if (bytes_read > 0) {
+        this->can_send_packet_ = false;
+        espnow::global_esp_now->send((uint8_t *) &espnow::ESPNOW_BROADCAST_ADDR, (uint8_t *) &buffer, bytes_read,
+                  [this](esp_err_t x) { this->can_send_packet_ = true; });
+      }
+    }
   }
 }
 
-InterCom *global_intercom = nullptr;
+void InterCom::espnow_received_handler(const espnow::ESPNowRecvInfo &info, const uint8_t *data, uint8_t size) {
+  if (this->mode_ == Mode::SPEAKER && !this->wait_to_switch_) {
+    this->speaker_->play(data, size);
+  }
+  return true;
+}
 
 }  // namespace intercom
 }  // namespace esphome

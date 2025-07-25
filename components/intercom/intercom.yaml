@@ -1,0 +1,70 @@
+substitutions:
+  name: "combadge"
+  friendly_name: "ComBadge communicator"
+  project_version: "0.6"
+  rttti_gain: "0.90"
+
+esphome:
+  name: "${name}"
+  name_add_mac_suffix: true
+  friendly_name: "${friendly_name}"
+  project:
+    name: lumensoft.${friendly_name}
+    version: ${project_version}
+
+esp32:
+  board: m5stack-atom
+  framework:
+    type: esp-idf
+    version: 5.3.2
+    platform_version: 53.3.13
+
+# To be able to get logs from the device via serial and api.
+logger:
+  level: debug
+
+external_components:
+  - source: github://pr#9582
+    components: [espnow]
+    refresh: 1 sec
+  - source:
+      type: local
+      path: D:\Development\projects\combadge\components
+    refresh: 0sec
+
+i2s_audio:
+  - id: i2s_audio_bus
+    i2s_lrclk_pin: GPIO33
+    i2s_bclk_pin: GPIO19
+
+microphone:
+  - platform: i2s_audio
+    id: echo_microphone
+    i2s_din_pin: GPIO23
+    adc_type: external
+    pdm: true
+    sample_rate: 16000
+    correct_dc_offset: true
+
+speaker:
+  - platform: i2s_audio
+    id: echo_speaker
+    i2s_dout_pin: GPIO22
+    dac_type: external
+    bits_per_sample: 16bit
+    sample_rate: 16000
+    channel: stereo # The Echo has poor playback audio quality when using mon audio
+    buffer_duration: 60ms
+
+rtttl:
+  speaker: echo_speaker
+  id: my_rtttl
+  gain: ${rttti_gain}
+
+espnow:
+  auto_add_peer: true
+  channel: 1
+  peers:
+    - 11:22:33:44:55:66
+
+intercom:
