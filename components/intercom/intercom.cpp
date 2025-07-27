@@ -1,19 +1,19 @@
 #include "intercom.h"
 
 #include "esphome/core/log.h"
+
 #include "esp_log.h"
 #include <cinttypes>
 #include <cstdio>
 
-namespace esphome {
-namespace intercom {
+namespace esphome::intercom {
 
 static const char *const TAG = "intercom";
 
-static const size_t SEND_BUFFER_SIZE = 210;
-
 static const size_t SAMPLE_RATE_HZ = 16000;
-
+static const char *const INTERCOM_HEADER = "Talk1";
+static const uint8_t INTERCOM_HEADER_SIZE = 5;
+static const size_t SEND_BUFFER_SIZE = 210;
 static const size_t RING_BUFFER_SAMPLES = 512 * SAMPLE_RATE_HZ / 1000;  // 512 ms * 16 kHz/ 1000 ms
 static const size_t RING_BUFFER_SIZE = RING_BUFFER_SAMPLES * sizeof(int16_t);
 static const size_t SEND_BUFFER_SAMPLES = 32 * SAMPLE_RATE_HZ / 1000;  // 32ms * 16kHz / 1000ms
@@ -46,11 +46,7 @@ void InterCom::setup() {
   this->high_freq_.start();
 }
 
-void InterCom::speaker_start_() {
-  this->speaker_->set_audio_stream_info(this->target_stream_info_);
-//  this->speaker_->start();
-}
-
+void InterCom::speaker_start_() { this->speaker_->set_audio_stream_info(this->target_stream_info_); }
 
 void InterCom::set_mode(Mode direction) {
   if (direction == Mode::SPEAKER) {
@@ -123,26 +119,29 @@ void InterCom::loop() {
 
 void InterCom::read_microphone_() {
   size_t bytes_read = 0;
-  uint8_t buffer[SEND_BUFFER_SIZE];
+  uint8_t buffer[SEND_BUFFER_SIZE + INTERCOM_HEADER_SIZE];
   if (this->can_send_packet_) {
     size_t available = this->ring_buffer_->available();
     if (available >= 60) {
-      size_t bytes_read = this->ring_buffer_->read((void *) &buffer, SEND_BUFFER_SIZE, 0);
+      memcpy(&buffer, INTERCOM_HEADER, INTERCOM_HEADER_SIZE);
+      size_t bytes_read = this->ring_buffer_->read((void *) &buffer[INTERCOM_HEADER_SIZE], SEND_BUFFER_SIZE, 0);
       if (bytes_read > 0) {
         this->can_send_packet_ = false;
-        espnow::global_esp_now->send((uint8_t *) &espnow::ESPNOW_BROADCAST_ADDR, (uint8_t *) &buffer, bytes_read,
-                  [this](esp_err_t x) { this->can_send_packet_ = true; });
+        espnow::global_esp_now->send(this->get_address(), (uint8_t *) &buffer, bytes_read + INTERCOM_HEADER_SIZE,
+                                     [this](esp_err_t x) { this->can_send_packet_ = true; });
       }
     }
   }
 }
 
 bool InterCom::espnow_received_handler(const espnow::ESPNowRecvInfo &info, const uint8_t *data, uint8_t size) {
-  if (this->mode_ == Mode::SPEAKER && !this->wait_to_switch_) {
-    this->speaker_->play(data, size);
+  if (memcmp(data, INTERCOM_HEADER, INTERCOM_HEADER_SIZE) == 0) {
+    if (this->mode_ == Mode::SPEAKER && !this->wait_to_switch_) {
+      this->speaker_->play(data + INTERCOM_HEADER_SIZE, size - INTERCOM_HEADER_SIZE);
+    }
+    return true;
   }
-  return true;
+  return false;
 }
 
 }  // namespace intercom
-}  // namespace esphome

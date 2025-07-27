@@ -15,8 +15,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace esphome {
-namespace intercom {
+namespace esphome::intercom {
 
 enum class Mode {
   NONE,
@@ -39,6 +38,23 @@ class InterCom : public Component, public espnow::ESPNowReceivedPacketHandler {
   }
   void set_auto_gain(uint8_t auto_gain) { this->auto_gain_ = auto_gain; }
   void set_volume_multiplier(float volume_multiplier) { this->volume_multiplier_ = volume_multiplier; }
+
+  void set_address_template(std::function<std::array<uint8_t, ESP_NOW_ETH_ALEN>()> func) {
+    this->address_func_ = func;
+    this->address_is_static_ = false;
+  }
+  void set_address_static(const std::array<uint8_t, ESP_NOW_ETH_ALEN> &address) {
+    this->address_static_ = address;
+    this->address_is_static_ = true;
+  }
+
+  uint8_t *get_address() {
+    if (this->address_is_static_) {
+      return this->address_static_.data();
+    } else {
+      return this->address_func_().data();
+    }
+  }
 
   void set_mode(Mode mode);
   bool is_in_mode(Mode mode);
@@ -63,6 +79,9 @@ class InterCom : public Component, public espnow::ESPNowReceivedPacketHandler {
   bool wait_to_switch_{false};
   bool can_send_packet_{true};
 
+  std::function<std::array<uint8_t, ESP_NOW_ETH_ALEN>()> address_func_;
+  std::array<uint8_t, ESP_NOW_ETH_ALEN> address_static_ = {0xff,0xff,0xff,0xff,0xff,0xff} ;
+  bool address_is_static_{true};
   HighFrequencyLoopRequester high_freq_;
 
 };
@@ -85,5 +104,4 @@ template<typename... Ts> class IsModeCondition : public Condition<Ts...>, public
   Mode mode_{Mode::NONE};
 };
 
-}  // namespace intercom
-}
+}  // intercom

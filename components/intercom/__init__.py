@@ -62,7 +62,7 @@ CONFIG_SCHEMA = cv.All(
             cv.Optional(CONF_VOLUME_MULTIPLIER, default=1.0): cv.float_range(
                 min=0.0, min_included=False
             ),
-
+            cv.Optional(espnow.CONF_ADDRESS): cv.templatable(cv.mac_address),
         }
     ).extend(cv.COMPONENT_SCHEMA),
 )
@@ -95,6 +95,8 @@ async def to_code(config):
     cg.add(var.set_auto_gain(config[CONF_AUTO_GAIN]))
     cg.add(var.set_volume_multiplier(config[CONF_VOLUME_MULTIPLIER]))
 
+    #   await espnow.register_peer(var, config, [])
+
     cg.add_define("USE_INTERCOM")
 
 
@@ -112,7 +114,7 @@ INTERCOM_ACTION_SCHEMA = cv.maybe_simple_value(
     ModeAction,
     INTERCOM_ACTION_SCHEMA,
 )
-async def intercom_action_code(config, action_id, template_arg, args):
+async def intercom_action_code(config, action_id, template_arg, arg ):
     var = cg.new_Pvariable(action_id, template_arg)
     await cg.register_parented(var, config[CONF_ID])
     cg.add(var.set_mode(config[CONF_MODE]))
@@ -125,7 +127,7 @@ async def intercom_action_code(config, action_id, template_arg, args):
     IsModeCondition,
     INTERCOM_ACTION_SCHEMA
 )
-async def display_is_displaying_page_to_code(config, condition_id, template_arg, args):
+async def intercom_mode_change_action_code(config, condition_id, template_arg, arg):
     var = cg.new_Pvariable(condition_id, template_arg)
     await cg.register_parented(var, config[CONF_ID])
     cg.add(var.set_mode(config[CONF_MODE]))

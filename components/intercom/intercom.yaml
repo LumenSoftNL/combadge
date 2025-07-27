@@ -16,8 +16,7 @@ esp32:
   board: m5stack-atom
   framework:
     type: esp-idf
-    version: 5.3.2
-    platform_version: 53.3.13
+
 
 # To be able to get logs from the device via serial and api.
 logger:
@@ -31,6 +30,10 @@ external_components:
       type: local
       path: D:\Development\projects\combadge\components
     refresh: 0sec
+  - source: github://pr#9926
+    components: [esp32]
+    refresh: 1h
+
 
 i2s_audio:
   - id: i2s_audio_bus
@@ -64,8 +67,6 @@ rtttl:
 espnow:
   auto_add_peer: true
   channel: 1
-  peers:
-    - 11:22:33:44:55:66
 
 intercom:
 
