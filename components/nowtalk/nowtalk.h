@@ -28,8 +28,8 @@ std::vector<unsigned char> badgeID_;
 
 std::vector<unsigned char> badgeID(){
     if (badgeID_.empty()) {
-        static char baseChars[] = "0123456789AbCdEfGhIjKlMnOpQrStUvWxYz"; //aBcDeFgHiJkLmNoPqRsTuVwXyZ
-        uint8_t base = sizeof(baseChars);
+        static char chars[] = "0123456789AbCdEfGhIjKlMnOpQrStUvWxYz"; //aBcDeFgHiJkLmNoPqRsTuVwXyZ
+        uint8_t base = sizeof(chars);
 
         uint32_t chipId = 0xa5000000;
         uint8_t crc = 0;
