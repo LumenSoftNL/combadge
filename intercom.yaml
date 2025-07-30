@@ -23,10 +23,11 @@ logger:
   level: debug
 
 external_components:
-  - source:
-      type: local
-      path: D:\Development\projects\combadge\components
-    refresh: 0sec
+#  - source:
+#      type: local
+#      path: D:\Development\projects\combadge\components
+#    refresh: 0sec
+  - source github::/LumenSoftNL/combadge/components
 
 i2s_audio:
   - id: i2s_audio_bus
