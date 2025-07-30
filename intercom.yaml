@@ -27,10 +27,6 @@ external_components:
       type: local
       path: D:\Development\projects\combadge\components
     refresh: 0sec
-  - source: github://pr#9926
-    components: [esp32]
-    refresh: 1h
-
 
 i2s_audio:
   - id: i2s_audio_bus
@@ -53,8 +49,8 @@ speaker:
     dac_type: external
     bits_per_sample: 16bit
     sample_rate: 16000
-    channel: stereo # The Echo has poor playback audio quality when using mon audio
-    buffer_duration: 60ms
+    channel: right # The Echo has poor playback audio quality when using mon audio
+    buffer_duration: 1000ms
 
 rtttl:
   speaker: echo_speaker
