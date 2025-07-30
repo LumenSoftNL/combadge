@@ -27,6 +27,8 @@ float InterCom::get_setup_priority() const { return setup_priority::LATE - 10; }
 void InterCom::setup() {
   ESP_LOGCONFIG(TAG, "Setting up Voice Assistant");
   espnow::global_esp_now->register_received_handler(this);
+  espnow::global_esp_now->register_broadcasted_handler(this);
+
   this->mic_source_->add_data_callback([this](const std::vector<uint8_t> &data) {
     if (!this->wait_to_switch_) {
       std::shared_ptr<RingBuffer> temp_ring_buffer = this->ring_buffer_;
@@ -134,7 +136,17 @@ void InterCom::read_microphone_() {
   }
 }
 
-bool InterCom::espnow_received_handler(const espnow::ESPNowRecvInfo &info, const uint8_t *data, uint8_t size) {
+bool InterCom::on_received(const espnow::ESPNowRecvInfo &info, const uint8_t *data, uint8_t size) {
+  if (memcmp(data, INTERCOM_HEADER, INTERCOM_HEADER_SIZE) == 0) {
+    if (this->mode_ == Mode::SPEAKER && !this->wait_to_switch_) {
+      this->speaker_->play(data + INTERCOM_HEADER_SIZE, size - INTERCOM_HEADER_SIZE);
+    }
+    return true;
+  }
+  return false;
+}
+
+bool InterCom::on_broadcasted(const espnow::ESPNowRecvInfo &info, const uint8_t *data, uint8_t size) {
   if (memcmp(data, INTERCOM_HEADER, INTERCOM_HEADER_SIZE) == 0) {
     if (this->mode_ == Mode::SPEAKER && !this->wait_to_switch_) {
       this->speaker_->play(data + INTERCOM_HEADER_SIZE, size - INTERCOM_HEADER_SIZE);

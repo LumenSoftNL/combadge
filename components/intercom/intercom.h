@@ -23,7 +23,9 @@ enum class Mode {
   SPEAKER,
 };
 
-class InterCom : public Component, public espnow::ESPNowReceivedPacketHandler {
+class InterCom : public Component, public espnow::ESPNowReceivedPacketHandler,
+                                  public espnow::ESPNowBroadcastedHandler
+{
  public:
   virtual ~InterCom();
 
@@ -60,7 +62,8 @@ class InterCom : public Component, public espnow::ESPNowReceivedPacketHandler {
   bool is_in_mode(Mode mode);
 
   float get_setup_priority() const override;
-  bool espnow_received_handler(const espnow::ESPNowRecvInfo &info, const uint8_t *data, uint8_t size) override;
+  bool on_received(const espnow::ESPNowRecvInfo &info, const uint8_t *data, uint8_t size) override;
+  bool on_broadcasted(const espnow::ESPNowRecvInfo &info, const uint8_t *data, uint8_t size) override;
 
  protected:
   void read_microphone_();
