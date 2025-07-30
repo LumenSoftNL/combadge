@@ -1,0 +1,57 @@
+substitutions:
+  name: "rtttl"
+  friendly_name: "ComBadge rtttl test"
+  project_version: "0.7"
+
+esphome:
+  name: "${name}"
+  name_add_mac_suffix: true
+  friendly_name: "${friendly_name}"
+  project:
+    name: lumensoft.${friendly_name}
+    version: ${project_version}
+
+esp32:
+  board: m5stack-atom
+  framework:
+    type: esp-idf
+
+#external_components:
+#  - source: github://pr#7657
+#    components: [ rtttl, i2s_audio ]
+#    refresh: 1 sec
+
+# To be able to get logs from the device via serial and api.
+logger:
+  level: very_verbose
+
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO39
+      inverted: true
+    name: Button
+    disabled_by_default: true
+    entity_category: diagnostic
+    filters:
+      - delayed_on_off: 70ms
+    id: echo_button
+    on_press:
+      - rtttl.play: "Intro:d=32,o=5,b=300:a,p4,b,p4,c4"
+
+i2s_audio:
+  - id: i2s_audio_bus
+    i2s_lrclk_pin: GPIO33
+    i2s_bclk_pin: GPIO19
+
+speaker:
+  - platform: i2s_audio
+    id: echo_speaker
+    i2s_dout_pin: GPIO22
+    dac_type: external
+    channel: mono
+    timeout: 200ms
+
+rtttl:
+  speaker: echo_speaker
+  id: my_rtttl

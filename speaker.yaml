@@ -1,6 +1,6 @@
 substitutions:
-  name: "combadge"
-  friendly_name: "ComBadge communicator"
+  name: "speaker"
+  friendly_name: "ComBadge speaker test"
   project_version: "0.5a"
   rttti_gain: "0.65"
 
@@ -24,18 +24,10 @@ logger:
 
 
 external_components:
-  - source:
-      type: local
-      path: C:\Development\projects\esphome\esphome\components
-    components:
-      - i2s_audio
-      - speaker
-      - rtttl
-  - source: github://pr#5230
-    components:
-      - esp_adf
+#  - source: github://pr#5230
+#    components:
+#      - esp_adf
 
-esp_adf:
 
 i2s_audio:
   i2s_lrclk_pin: GPIO33

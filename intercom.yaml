@@ -4,7 +4,6 @@ substitutions:
   project_version: "0.6"
   rttti_gain: "0.90"
 
-
 esphome:
   name: "${name}"
   name_add_mac_suffix: true
@@ -18,18 +17,56 @@ esp32:
   framework:
     type: esp-idf
 
+
 # To be able to get logs from the device via serial and api.
 logger:
-  level: verbose
+  level: debug
 
 external_components:
-  - source: github://pr#7141
-    components: [ espnow ]
-    refresh: 1 sec
   - source:
       type: local
-      path: C:\Development\projects\combadge\components
+      path: D:\Development\projects\combadge\components
     refresh: 0sec
+  - source: github://pr#9926
+    components: [esp32]
+    refresh: 1h
+
+
+i2s_audio:
+  - id: i2s_audio_bus
+    i2s_lrclk_pin: GPIO33
+    i2s_bclk_pin: GPIO19
+
+microphone:
+  - platform: i2s_audio
+    id: echo_microphone
+    i2s_din_pin: GPIO23
+    adc_type: external
+    pdm: true
+    sample_rate: 16000
+    correct_dc_offset: true
+
+speaker:
+  - platform: i2s_audio
+    id: echo_speaker
+    i2s_dout_pin: GPIO22
+    dac_type: external
+    bits_per_sample: 16bit
+    sample_rate: 16000
+    channel: stereo # The Echo has poor playback audio quality when using mon audio
+    buffer_duration: 60ms
+
+rtttl:
+  speaker: echo_speaker
+  id: my_rtttl
+  gain: ${rttti_gain}
+
+espnow:
+  auto_add_peer: true
+  channel: 1
+
+
+intercom:
 
 binary_sensor:
   - platform: gpio
@@ -43,43 +80,10 @@ binary_sensor:
       - delayed_on_off: 70ms
     id: echo_button
     on_press:
-      - intercom.mode: none
-      - rtttl.play: "Intro:d=32,o=5,b=300:a,b,c"
+      #- intercom.mode: none
+      #- rtttl.play: "Intro:d=32,o=5,b=300:a,b,c"
       - intercom.mode: microphone
     on_release:
-      - intercom.mode: none
-      - rtttl.play: "Urgent:d=8,o=6,b=500:c,e,d7"
+      #- intercom.mode: none
+      # - rtttl.play: "Urgent:d=8,o=6,b=500:c,e,d7"
       - intercom.mode: speaker
-
-i2s_audio:
-  - id: i2s_audio_bus
-    i2s_lrclk_pin: GPIO33
-    i2s_bclk_pin: GPIO19
-
-microphone:
-  - platform: i2s_audio
-    id: echo_microphone
-    i2s_din_pin: GPIO23
-    adc_type: external
-    pdm: true
-
-speaker:
-  - platform: i2s_audio
-    id: echo_speaker
-    i2s_dout_pin: GPIO22
-    dac_type: external
-    channel: mono
-
-rtttl:
-  speaker: echo_speaker
-  id: my_rtttl
-  gain: ${rttti_gain}
-
-espnow:
-  auto_add_peer: true
-  use_sent_check: false
-  peers:
-    - FF:FF:FF:FF:FF:FF
-
-
-intercom:

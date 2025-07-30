@@ -1,0 +1,51 @@
+substitutions:
+  name: "test"
+  friendly_name: "ComBadge test"
+  project_version: "0.5a"
+  rttti_gain: "0.65"
+
+esphome:
+  name: "${name}"
+  name_add_mac_suffix: true
+  friendly_name: "${friendly_name}"
+  project:
+    name: lumensoft.${friendly_name}
+    version: ${project_version}
+
+esp32:
+  board: m5stack-atom
+  framework:
+    type: esp-idf
+
+# To be able to get logs from the device via serial and api.
+logger:
+  level: verbose
+
+external_components:
+  - source: github://pr#7141
+    components: [ espnow ]
+    refresh: 1 sec
+  - source:
+      type: local
+      path: C:\Development\projects\combadge\components
+
+#esp_adf:
+
+espnow:
+  auto_add_peer: true
+  peers:
+    - FF:FF:FF:FF:FF:FF
+  on_receive:
+    - logger.log:
+        format: "New Packet Received: RSSI: %u| %s"
+        args: [packet.rssi, packet.get_payload()]
+
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO39
+      inverted: true
+    name: Button
+    disabled_by_default: true
+    entity_category: diagnostic
+    id: echo_button
