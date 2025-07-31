@@ -11,6 +11,8 @@ esphome:
   project:
     name: lumensoft.${friendly_name}
     version: ${project_version}
+  platformio_options:
+    upload_speed: 115200
 
 esp32:
   board: m5stack-atom
@@ -23,11 +25,14 @@ logger:
   level: debug
 
 external_components:
-#  - source:
-#      type: local
-#      path: D:\Development\projects\combadge\components
-#    refresh: 0sec
-  - source github::/LumenSoftNL/combadge/components
+  #- source:
+  #    type: local
+  #    path: D:\Development\projects\combadge\components
+  #  refresh: 0sec
+  - source:
+      type: git
+      url: https://github.com/LumenSoftNL/combadge
+      ref: main
 
 i2s_audio:
   - id: i2s_audio_bus
@@ -64,6 +69,9 @@ espnow:
 
 
 intercom:
+  microphone:
+    microphone: echo_microphone
+    gain_factor: 4
 
 binary_sensor:
   - platform: gpio
@@ -77,10 +85,14 @@ binary_sensor:
       - delayed_on_off: 70ms
     id: echo_button
     on_press:
+      - intercom.mode: none
+      - delay: 50ms
       #- intercom.mode: none
       #- rtttl.play: "Intro:d=32,o=5,b=300:a,b,c"
       - intercom.mode: microphone
     on_release:
+      - intercom.mode: none
+      - delay: 50ms
       #- intercom.mode: none
       # - rtttl.play: "Urgent:d=8,o=6,b=500:c,e,d7"
       - intercom.mode: speaker
