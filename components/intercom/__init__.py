@@ -9,21 +9,27 @@ from esphome.const import (
 )
 from esphome import automation
 from esphome.automation import register_action
-from esphome.components import microphone, speaker, espnow
+from esphome.components import microphone, speaker
+from esphome.components.espnow import (
+    ESPNOW_SCHEMA,
+    register_espnow_extention,
+    ESPNowReceivedPacketHandler,
+    ESPNowBroadcastedHandler,
+)
 
-DEPENDENCIES = ["microphone", "speaker", "espnow"]
+
+AUTO_LOAD = ["microphone", "speaker", "espnow"]
 
 CODEOWNERS = ["@LumenSoftNL"]
 
-CONF_AUTO_GAIN = "auto_gain"
-CONF_NOISE_SUPPRESSION_LEVEL = "noise_suppression_level"
-CONF_VOLUME_MULTIPLIER = "volume_multiplier"
-CONF_SILENCE_DETECTION = "silence_detection"
 
-CONF_ESPNOW = "espnow"
+CONF_INTERCOM = "intercom"
+
 
 intercom_ns = cg.esphome_ns.namespace("intercom")
-InterCom = intercom_ns.class_("InterCom", cg.Component, espnow.ESPNowReceivedPacketHandler)
+InterCom = intercom_ns.class_(
+    "InterCom", cg.Component, ESPNowReceivedPacketHandler, ESPNowBroadcastedHandler
+)
 
 ModeAction = intercom_ns.class_(
     "ModeAction", automation.Action, cg.Parented.template(InterCom)
@@ -44,58 +50,35 @@ CONFIG_SCHEMA = cv.All(
     cv.Schema(
         {
             cv.GenerateID(): cv.declare_id(InterCom),
-            cv.Optional(
-                CONF_MICROPHONE, default={}
-            ): microphone.microphone_source_schema(
+            cv.Optional(CONF_MICROPHONE): microphone.microphone_source_schema(
                 min_bits_per_sample=16,
                 max_bits_per_sample=16,
                 min_channels=1,
                 max_channels=1,
             ),
-            cv.GenerateID(CONF_SPEAKER): cv.use_id(speaker.Speaker),
-
-            cv.Optional(CONF_NOISE_SUPPRESSION_LEVEL, default=0): cv.int_range(0, 4),
-            cv.Optional(CONF_AUTO_GAIN, default="0dBFS"): cv.All(
-                cv.float_with_unit("decibel full scale", "(dBFS|dbfs|DBFS)"),
-                cv.int_range(0, 31),
-            ),
-            cv.Optional(CONF_VOLUME_MULTIPLIER, default=1.0): cv.float_range(
-                min=0.0, min_included=False
-            ),
-            cv.Optional(espnow.CONF_ADDRESS): cv.templatable(cv.mac_address),
+            cv.Optional(CONF_SPEAKER): cv.use_id(speaker.Speaker),
+            cv.Optional(CONF_MODE): cv.enum(MODE_ENUM, upper=True),
         }
-    ).extend(cv.COMPONENT_SCHEMA),
+    )
+    .extend(cv.COMPONENT_SCHEMA)
+    .extend(ESPNOW_SCHEMA),
 )
-
-FINAL_VALIDATE_SCHEMA = cv.All(
-    cv.Schema(
-        {
-            cv.Optional(
-                CONF_MICROPHONE
-            ): microphone.final_validate_microphone_source_schema(
-                "InterCom", sample_rate=16000
-            ),
-        },
-        extra=cv.ALLOW_EXTRA,
-    ),
-)
-
 
 async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
+    await register_espnow_extention(var, config)
 
-    mic_source = await microphone.microphone_source_to_code(config[CONF_MICROPHONE])
-    cg.add(var.set_microphone_source(mic_source))
+    if mic := config.get(CONF_MICROPHONE):
+        mic_source = await microphone.microphone_source_to_code(mic)
+        cg.add(var.set_microphone_source(mic_source))
 
-    spkr = await cg.get_variable(config[CONF_SPEAKER])
-    cg.add(var.set_speaker(spkr))
+    if output := config.get(CONF_SPEAKER):
+        spkr = await cg.get_variable(output)
+        cg.add(var.set_speaker(spkr))
 
-    cg.add(var.set_noise_suppression_level(config[CONF_NOISE_SUPPRESSION_LEVEL]))
-    cg.add(var.set_auto_gain(config[CONF_AUTO_GAIN]))
-    cg.add(var.set_volume_multiplier(config[CONF_VOLUME_MULTIPLIER]))
-
-    #   await espnow.register_peer(var, config, [])
+    if value := config.get(CONF_MODE):
+        cg.add(var.set_mode(value))
 
     cg.add_define("USE_INTERCOM")
 
@@ -114,7 +97,7 @@ INTERCOM_ACTION_SCHEMA = cv.maybe_simple_value(
     ModeAction,
     INTERCOM_ACTION_SCHEMA,
 )
-async def intercom_action_code(config, action_id, template_arg, arg ):
+async def intercom_action_code(config, action_id, template_arg, arg):
     var = cg.new_Pvariable(action_id, template_arg)
     await cg.register_parented(var, config[CONF_ID])
     cg.add(var.set_mode(config[CONF_MODE]))
@@ -122,11 +105,7 @@ async def intercom_action_code(config, action_id, template_arg, arg ):
     return var
 
 
-@automation.register_condition(
-    "intercom.mode",
-    IsModeCondition,
-    INTERCOM_ACTION_SCHEMA
-)
+@automation.register_condition("intercom.mode", IsModeCondition, INTERCOM_ACTION_SCHEMA)
 async def intercom_mode_change_action_code(config, condition_id, template_arg, arg):
     var = cg.new_Pvariable(condition_id, template_arg)
     await cg.register_parented(var, config[CONF_ID])

@@ -1,0 +1,106 @@
+substitutions:
+  name: "combridge"
+  project_version: "0.6"
+  comment: "ComBridge host"
+
+esphome:
+  name: ${name}
+  comment: "${name} - ${comment}"
+  name_add_mac_suffix: true
+  friendly_name: "${comment}"
+
+  project:
+    name: ${name}.${comment}
+    version: ${project_version}
+
+esp32:
+  board: esp32-gateway
+  framework:
+    type: esp-idf
+
+
+ethernet:
+#  type: LAN8720
+#  mdc_pin: GPIO23
+#  mdio_pin: GPIO18
+#  clk:
+#    pin: GPIO17
+#    mode: CLK_OUT
+#  phy_addr: 0
+  type: LAN8720
+  mdc_pin: GPIO23
+  mdio_pin: GPIO18
+  clk:
+    pin: GPIO0
+    mode: CLK_EXT_IN
+  phy_addr: 1
+  power_pin: GPIO16
+
+# Enable logging
+logger:
+  level: debug
+
+debug:
+  update_interval: 15s
+
+text_sensor:
+  - platform: debug
+    reset_reason:
+      name: "Reset Reason"
+
+api:
+
+button:
+  - platform: restart
+    name: "Reboot"
+    disabled_by_default: true
+
+binary_sensor:
+  - platform: status
+    name: "Status"
+    disabled_by_default: true
+    entity_category: diagnostic
+
+
+external_components:
+  - source:
+      type: local
+      path: D:\Development\projects\combadge\components
+    refresh: 0sec
+#  - source:
+#      type: git
+#      url: https://github.com/LumenSoftNL/combadge
+#      ref: main
+
+i2s_audio:
+  - id: i2s_audio_bus
+    i2s_lrclk_pin: GPIO33
+    i2s_bclk_pin: GPIO19
+
+
+speaker:
+  - platform: intercom
+    intercom: echo_intercom
+    id: intercom_spr
+
+media_player:
+  - platform: speaker
+    name: none
+    id: speaker_media_player_id
+    announcement_pipeline:
+      speaker: intercom_spr
+      num_channels: 1
+      sample_rate: 16000
+      format: WAV
+    codec_support_enabled: false
+    buffer_size: 4000
+
+
+espnow:
+  auto_add_peer: true
+  channel: 1
+
+intercom:
+  id: echo_intercom
+  address: ff:ff:ff:ff:ff:ff
+  mode: microphone

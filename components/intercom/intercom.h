@@ -17,76 +17,63 @@
 
 namespace esphome::intercom {
 
-enum class Mode {
-  NONE,
-  MICROPHONE,
-  SPEAKER,
-};
+enum class Mode { NONE, MICROPHONE, SPEAKER };
 
-class InterCom : public Component, public espnow::ESPNowReceivedPacketHandler,
-                                  public espnow::ESPNowBroadcastedHandler
-{
+class InterCom : public Component,
+                 public Parented<espnow::ESPNowComponent>,
+                 public espnow::ESPNowReceivedPacketHandler,
+                 public espnow::ESPNowBroadcastedHandler {
  public:
-  virtual ~InterCom();
-
   void setup() override;
+  void dump_config() override;
   void loop() override;
 
   void set_microphone_source(microphone::MicrophoneSource *mic_source) { this->mic_source_ = mic_source; }
   void set_speaker(speaker::Speaker *speaker) { this->speaker_ = speaker; }
 
-  void set_noise_suppression_level(uint8_t noise_suppression_level) {
-    this->noise_suppression_level_ = noise_suppression_level;
+  void add_play_audio_callback(std::function<size_t(uint8_t *, size_t)> &&callback) {
+    this->play_audio_callback_.add(std::move(callback));
   }
-  void set_auto_gain(uint8_t auto_gain) { this->auto_gain_ = auto_gain; }
-  void set_volume_multiplier(float volume_multiplier) { this->volume_multiplier_ = volume_multiplier; }
-
-  void set_address_template(std::function<std::array<uint8_t, ESP_NOW_ETH_ALEN>()> func) {
-    this->address_func_ = func;
-    this->address_is_static_ = false;
-  }
-  void set_address_static(const std::array<uint8_t, ESP_NOW_ETH_ALEN> &address) {
-    this->address_static_ = address;
-    this->address_is_static_ = true;
-  }
-
-  uint8_t *get_address() {
-    if (this->address_is_static_) {
-      return this->address_static_.data();
-    } else {
-      return this->address_func_().data();
-    }
-  }
-
+  void set_address(Templatable<espnow::peer_address_t> address) { this->address_ = address; }
   void set_mode(Mode mode);
   bool is_in_mode(Mode mode);
 
   float get_setup_priority() const override;
+
   bool on_received(const espnow::ESPNowRecvInfo &info, const uint8_t *data, uint8_t size) override;
   bool on_broadcasted(const espnow::ESPNowRecvInfo &info, const uint8_t *data, uint8_t size) override;
+
+  void receive_audio(const uint8_t *data, size_t length) { this->buffer_audio(data, length); }
+  size_t buffer_audio(const uint8_t *data, size_t length);
+  bool has_buffered_data() { return (this->ring_buffer_mic_.use_count() >= 0) && this->ring_buffer_mic_->available(); }
+
+  bool validate_address(const uint8_t *address);
+
+  // void set_address(espnow::peer_address_t address) {this->address_ = address; }
 
  protected:
   void read_microphone_();
   void speaker_start_();
+  bool has_mic_source_() { return this->mic_source_ != nullptr; }
+  bool has_spr_source_() { return this->speaker_ != nullptr; }
 
   microphone::MicrophoneSource *mic_source_{nullptr};
   speaker::Speaker *speaker_{nullptr};
+  // esphome::optional <espnow::peer_address_t> address_{};
 
-  std::shared_ptr<RingBuffer> ring_buffer_;
+  std::shared_ptr<RingBuffer> ring_buffer_mic_;
+  std::shared_ptr<RingBuffer> ring_buffer_spr_;
+  Templatable<espnow::peer_address_t> address_{};
+
   audio::AudioStreamInfo target_stream_info_;
 
-  Mode mode_{Mode::SPEAKER};
-  uint8_t noise_suppression_level_;
-  uint8_t auto_gain_;
-  float volume_multiplier_;
+  Mode mode_{Mode::NONE};
+
   bool wait_to_switch_{false};
   bool can_send_packet_{true};
 
-  std::function<std::array<uint8_t, ESP_NOW_ETH_ALEN>()> address_func_;
-  std::array<uint8_t, ESP_NOW_ETH_ALEN> address_static_ = {0xff,0xff,0xff,0xff,0xff,0xff} ;
-  bool address_is_static_{true};
   HighFrequencyLoopRequester high_freq_;
-
+  CallbackManager<void(uint8_t *, size_t)> play_audio_callback_{};
 };
 
 template<typename... Ts> class ModeAction : public Action<Ts...>, public Parented<InterCom> {
@@ -107,4 +94,4 @@ template<typename... Ts> class IsModeCondition : public Condition<Ts...>, public
   Mode mode_{Mode::NONE};
 };
 
-}  // intercom
+}  // namespace esphome::intercom

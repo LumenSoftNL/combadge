@@ -25,14 +25,14 @@ logger:
   level: debug
 
 external_components:
-  #- source:
-  #    type: local
-  #    path: D:\Development\projects\combadge\components
-  #  refresh: 0sec
   - source:
-      type: git
-      url: https://github.com/LumenSoftNL/combadge
-      ref: main
+      type: local
+      path: D:\Development\projects\combadge\components
+    refresh: 0sec
+#  - source:
+#      type: git
+#      url: https://github.com/LumenSoftNL/combadge
+#      ref: main
 
 i2s_audio:
   - id: i2s_audio_bus
@@ -46,20 +46,27 @@ microphone:
     adc_type: external
     pdm: true
     sample_rate: 16000
+    channel: right
     correct_dc_offset: true
 
 speaker:
   - platform: i2s_audio
-    id: echo_speaker
+    id: speaker_id
     i2s_dout_pin: GPIO22
     dac_type: external
     bits_per_sample: 16bit
     sample_rate: 16000
-    channel: right # The Echo has poor playback audio quality when using mon audio
+    channel: stereo # The Echo has poor playback audio quality when using mon audio
     buffer_duration: 1000ms
+  - platform: mixer
+    output_speaker: speaker_id
+    source_speakers:
+      - id: rtttl_speaker_id
+      - id: intercom_speaker_id
+
 
 rtttl:
-  speaker: echo_speaker
+  speaker: rtttl_speaker_id
   id: my_rtttl
   gain: ${rttti_gain}
 
@@ -67,11 +74,15 @@ espnow:
   auto_add_peer: true
   channel: 1
 
-
 intercom:
+  id: echo_intercom
   microphone:
     microphone: echo_microphone
-    gain_factor: 4
+    gain_factor: 8
+  speaker: intercom_speaker_id
+  address: ff:ff:ff:ff:ff:ff
+  mode: speaker
+
 
 binary_sensor:
   - platform: gpio
@@ -85,14 +96,6 @@ binary_sensor:
       - delayed_on_off: 70ms
     id: echo_button
     on_press:
-      - intercom.mode: none
-      - delay: 50ms
-      #- intercom.mode: none
-      #- rtttl.play: "Intro:d=32,o=5,b=300:a,b,c"
       - intercom.mode: microphone
     on_release:
-      - intercom.mode: none
-      - delay: 50ms
-      #- intercom.mode: none
-      # - rtttl.play: "Urgent:d=8,o=6,b=500:c,e,d7"
       - intercom.mode: speaker
