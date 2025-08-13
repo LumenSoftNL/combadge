@@ -59,10 +59,9 @@ class InterCom : public Component,
 
   microphone::MicrophoneSource *mic_source_{nullptr};
   speaker::Speaker *speaker_{nullptr};
-  // esphome::optional <espnow::peer_address_t> address_{};
 
   std::shared_ptr<RingBuffer> ring_buffer_mic_;
-  std::shared_ptr<RingBuffer> ring_buffer_spr_;
+
   Templatable<espnow::peer_address_t> address_{};
 
   audio::AudioStreamInfo target_stream_info_;

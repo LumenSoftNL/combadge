@@ -16,11 +16,7 @@ static const uint8_t INTERCOM_HEADER_SIZE = 8;
 
 static const size_t SEND_BUFFER_SIZE = 240;
 
-static const size_t RING_BUFFER_SAMPLES = 512 * SAMPLE_RATE_HZ / 1000;  // 512 ms * 16 kHz/ 1000 ms
-static const size_t RING_BUFFER_SIZE = RING_BUFFER_SAMPLES * sizeof(int16_t);
-static const size_t SEND_BUFFER_SAMPLES = 32 * SAMPLE_RATE_HZ / 1000;  // 32ms * 16kHz / 1000ms
-static const size_t RECEIVE_SIZE = 1024;
-static const size_t SPEAKER_BUFFER_SIZE = 16 * RECEIVE_SIZE;
+static const size_t RING_BUFFER_SIZE = ( 1024 * SAMPLE_RATE_HZ / 1000) * sizeof(int16_t);
 
 float InterCom::get_setup_priority() const { return setup_priority::LATE - 10; }
 
@@ -47,8 +43,8 @@ void InterCom::setup() {
 }
 
 void InterCom::dump_config() {
-  ESP_LOGCONFIG(TAG, "Configuration:");
-  ESP_LOGCONFIG(TAG, "  Buffer size: ", RING_BUFFER_SIZE);
+  ESP_LOGCONFIG(TAG, "Intercom:");
+  ESP_LOGCONFIG(TAG, "  Buffer size: %d", RING_BUFFER_SIZE);
 }
 
 void InterCom::speaker_start_() {
@@ -58,13 +54,9 @@ void InterCom::speaker_start_() {
 }
 
 size_t InterCom::buffer_audio(const uint8_t *data, size_t length) {
-  std::shared_ptr<RingBuffer> temp_ring_buffer = this->ring_buffer_mic_;
-  if (this->ring_buffer_mic_.use_count() > 1) {
-    size_t result = temp_ring_buffer->write_without_replacement(data, length, 100);
-    ESP_LOGI(TAG, "%5d,%6d,%5d,%5d ", temp_ring_buffer->available(), temp_ring_buffer->free(), length, result);
-    return result;
-  }
-  return 0;
+  size_t result = this->ring_buffer_mic_->write_without_replacement(data, length, pdMS_TO_TICKS(100));  //
+//  ESP_LOGI(TAG, "%5d,%6d,%5d,%5d ", this->ring_buffer_mic_->available(), this->ring_buffer_mic_->free(), length, result);
+  return result;
 }
 
 void InterCom::set_mode(Mode direction) {
@@ -135,10 +127,7 @@ void InterCom::loop() {
       this->speaker_start_();
     }
   }
-  if (this->is_in_mode(Mode::MICROPHONE)) {
-    this->read_microphone_();
-  }
-  App.feed_wdt();
+  this->read_microphone_();
 }
 
 void InterCom::read_microphone_() {
@@ -146,10 +135,10 @@ void InterCom::read_microphone_() {
   uint8_t buffer[SEND_BUFFER_SIZE + INTERCOM_HEADER_SIZE + 1];
   if (this->can_send_packet_) {
     size_t available = this->ring_buffer_mic_->available();
-    if (available >= 64) {
+    if (available > 0) {
       memcpy(&buffer, INTERCOM_HEADER, INTERCOM_HEADER_SIZE);
       size_t read_size = std::min(available, SEND_BUFFER_SIZE);
-      size_t bytes_read = this->ring_buffer_mic_->read((void *) &buffer[INTERCOM_HEADER_SIZE], read_size, 100);
+      size_t bytes_read = this->ring_buffer_mic_->read((void *) &buffer[INTERCOM_HEADER_SIZE], read_size, pdMS_TO_TICKS(100));
       if (bytes_read > 0) {
         this->can_send_packet_ = false;
         uint8_t *address = nullptr;

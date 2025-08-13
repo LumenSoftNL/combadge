@@ -1,40 +1,44 @@
 substitutions:
-  name: "combridge"
+  name: "combridge2"
   project_version: "0.6"
-  comment: "ComBridge host"
+  comment: "Woonkamer"
 
 esphome:
   name: ${name}
   comment: "${name} - ${comment}"
-  name_add_mac_suffix: true
   friendly_name: "${comment}"
 
   project:
-    name: ${name}.${comment}
+    name: "lumensoft.combridge"
     version: ${project_version}
 
 esp32:
-  board: esp32-gateway
+  board: esp32dev
   framework:
     type: esp-idf
 
 
 ethernet:
-#  type: LAN8720
-#  mdc_pin: GPIO23
-#  mdio_pin: GPIO18
-#  clk:
-#    pin: GPIO17
-#    mode: CLK_OUT
-#  phy_addr: 0
   type: LAN8720
   mdc_pin: GPIO23
   mdio_pin: GPIO18
   clk:
-    pin: GPIO0
-    mode: CLK_EXT_IN
-  phy_addr: 1
-  power_pin: GPIO16
+    pin: GPIO17
+    mode: CLK_OUT
+  phy_addr: 0
+  power_pin: GPIO5
+#  type: LAN8720
+#  mdc_pin: GPIO23
+#  mdio_pin: GPIO18
+#  clk:
+#    pin: GPIO0
+#    mode: CLK_EXT_IN
+#  phy_addr: 1
+#  power_pin: GPIO16
+
+ota:
+  platform: esphome
+
 
 # Enable logging
 logger:
@@ -72,6 +76,18 @@ external_components:
 #      url: https://github.com/LumenSoftNL/combadge
 #      ref: main
 
+  - source:
+      type: git
+      url: https://github.com/ssieb/esphome
+      ref: psram
+    components: [ psram ]
+    refresh: 0s
+
+psram:
+  disabled: true
+
+
+
 i2s_audio:
   - id: i2s_audio_bus
     i2s_lrclk_pin: GPIO33
@@ -103,4 +119,3 @@ espnow:
 intercom:
   id: echo_intercom
   address: ff:ff:ff:ff:ff:ff
-  mode: microphone

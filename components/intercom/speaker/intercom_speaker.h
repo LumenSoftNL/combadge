@@ -9,6 +9,7 @@
 
 namespace esphome::intercom {
 
+static const size_t INTERIM_BUFFER_SIZE = 512;
 class IntercomSpeaker : public Component, public speaker::Speaker, public Parented<intercom::InterCom> {
 public:
   float get_setup_priority() const override { return esphome::setup_priority::DATA; }
@@ -17,8 +18,13 @@ public:
 
   void start() override;
   void stop() override;
+  void loop() override;
 
   bool has_buffered_data() const override;
+ protected:
+  uint16_t wdt_counter_{0};
+  uint8_t interim_buffer_[INTERIM_BUFFER_SIZE] {};
+
 };
 
 }  // namespace esphome::intercom_speaker
