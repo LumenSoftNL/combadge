@@ -11,8 +11,8 @@ namespace esphome::intercom {
 static const char *const TAG = "intercom";
 
 static const size_t SAMPLE_RATE_HZ = 16000;
-static const char *const INTERCOM_HEADER = "NowTalk1";
-static const uint8_t INTERCOM_HEADER_SIZE = 8;
+static const char *const INTERCOM_HEADER = "EnIc1";
+static const uint8_t INTERCOM_HEADER_SIZE = 5;
 
 static const size_t SEND_BUFFER_SIZE = 240;
 
@@ -128,6 +128,7 @@ void InterCom::loop() {
     }
   }
   this->read_microphone_();
+  App.feed_wdt();
 }
 
 void InterCom::read_microphone_() {

@@ -40,10 +40,9 @@ void IntercomSpeaker::loop() {
     App.feed_wdt();
     this->wdt_counter_ = 0;
   }
-  if (this->state_ == speaker::STATE_STOPPING && !this->has_buffered_data()){
+  if (this->state_ == speaker::STATE_STOPPING && !this->has_buffered_data()) {
     this->state_ = speaker::STATE_STOPPED;
   }
-
 }
 
 bool IntercomSpeaker::has_buffered_data() const { return (this->parent_->has_buffered_data()); }
