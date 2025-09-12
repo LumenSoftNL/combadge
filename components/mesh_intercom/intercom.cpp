@@ -196,7 +196,7 @@ bool InterCom::handle_receive_(uint8_t *data, size_t size) {
 
 int8_t InterCom::handleFrame(uint8_t *buf, uint16_t len, uint32_t from) {
   ESP_LOGD(TAG, "Received packet from N%X, len %d", from, len);
-  if (this->validate_address_(address)) {
+  if (this->validate_address_(from)) {
     return this->handle_received_(buf, len) ? HANDLE_UART_OK : FRAME_NOT_HANDLED
   }
   return FRAME_NOT_HANDLED;
