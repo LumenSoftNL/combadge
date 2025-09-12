@@ -121,7 +121,7 @@ async def intercom_mode_change_action_code(config, condition_id, template_arg, a
 
 
 @register_action(
-    "intercom.mode",
+    "intercom.address",
     ChangeAddressAction,
     cv.maybe_simple_value(
         {
