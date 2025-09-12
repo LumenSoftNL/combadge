@@ -20,7 +20,7 @@ namespace esphome::intercom {
 
 enum class Mode { NONE, MICROPHONE, SPEAKER };
 
-class InterCom : public Component, public Parented<meshmesg::MeshmeshComponent> {
+class InterCom : public Component, public Parented<meshmesh::MeshmeshComponent> {
  public:
   void setup() override;
   void dump_config() override;
@@ -63,7 +63,7 @@ class InterCom : public Component, public Parented<meshmesg::MeshmeshComponent> 
   std::shared_ptr<RingBuffer> ring_buffer_mic_;
 
   bool validate_address_(uint32_t address);
-  uint32_t mesh_address_{};
+  uint32_t address_{0xffffffff};
 
   audio::AudioStreamInfo target_stream_info_;
 
