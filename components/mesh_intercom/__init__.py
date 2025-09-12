@@ -30,6 +30,11 @@ ModeAction = intercom_ns.class_(
     "ModeAction", automation.Action, cg.Parented.template(InterCom)
 )
 
+ChangeAddressAction = intercom_ns.class_(
+    "ChangeAddressAction", automation.Action, cg.Parented.template(InterCom)
+)
+
+
 IsModeCondition = intercom_ns.class_(
     "IsModeCondition", automation.Condition, cg.Parented.template(InterCom)
 )
@@ -54,13 +59,10 @@ CONFIG_SCHEMA = cv.All(
             cv.Optional(CONF_SPEAKER): cv.use_id(speaker.Speaker),
             cv.Optional(CONF_MODE): cv.enum(MODE_ENUM, upper=True),
             cv.Optional(CONF_ALLOW_BROADCAST): cv.boolean,
-
             cv.GenerateID(CONF_MESHMESH_ID): cv.use_id(MeshmeshComponent),
-            cv.Required(CONF_ADDRESS): cv.positive_int,
-
+            cv.Required(CONF_ADDRESS): cv.hex_uint32_t,
         }
-    )
-    .extend(cv.COMPONENT_SCHEMA)
+    ).extend(cv.COMPONENT_SCHEMA)
 )
 
 
@@ -102,7 +104,7 @@ INTERCOM_ACTION_SCHEMA = cv.maybe_simple_value(
     ModeAction,
     INTERCOM_ACTION_SCHEMA,
 )
-async def intercom_action_code(config, action_id, template_arg, arg):
+async def intercom_action_code(config, action_id, template_arg, args):
     var = cg.new_Pvariable(action_id, template_arg)
     await cg.register_parented(var, config[CONF_ID])
     cg.add(var.set_mode(config[CONF_MODE]))
@@ -111,8 +113,28 @@ async def intercom_action_code(config, action_id, template_arg, arg):
 
 
 @automation.register_condition("intercom.mode", IsModeCondition, INTERCOM_ACTION_SCHEMA)
-async def intercom_mode_change_action_code(config, condition_id, template_arg, arg):
+async def intercom_mode_change_action_code(config, condition_id, template_arg, args):
     var = cg.new_Pvariable(condition_id, template_arg)
     await cg.register_parented(var, config[CONF_ID])
+    cg.add(var.set_mode(config[CONF_MODE]))
+    return var
+
+
+@register_action(
+    "intercom.mode",
+    ChangeAddressAction,
+    cv.maybe_simple_value(
+        {
+            cv.GenerateID(): cv.use_id(InterCom),
+            cv.Required(CONF_ADDRESS): cv.hex_uint32_t,
+        },
+        key=CONF_ADDRESS,
+    ),
+)
+async def intercom_action_code(config, action_id, template_arg, args):
+    var = cg.new_Pvariable(action_id, template_arg)
+    await cg.register_parented(var, config[CONF_ID])
+    template_ = await cg.templatable(config[CONF_ADDRESS], args, cg.uint32)
+    cg.add(var.set_frame(template_))
     cg.add(var.set_mode(config[CONF_MODE]))
     return var

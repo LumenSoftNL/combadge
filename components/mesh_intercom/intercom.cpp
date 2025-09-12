@@ -3,6 +3,7 @@
 #include "esphome/core/application.h"
 #include "esphome/core/log.h"
 
+#include <espmeshmesh.h>
 #include <cinttypes>
 #include <cstdio>
 
@@ -164,9 +165,9 @@ void InterCom::send_audio_packet_() {
 }
 
 bool InterCom::validate_address_(uint32_t address) {
-  if ((uint32_t) *address == 0) {
-    return true;
-  } else if ((uint32_t) *address, current_address, ESP_NOW_ETH_ALEN) == 0) {
+  if (address == 0 ) {
+    return this->broadcast_allowed_;
+  } else if (address == this->address_) {
     return true;
   }
   return false;
@@ -197,7 +198,7 @@ bool InterCom::handle_receive_(uint8_t *data, size_t size) {
 int8_t InterCom::handleFrame(uint8_t *buf, uint16_t len, uint32_t from) {
   ESP_LOGD(TAG, "Received packet from N%X, len %d", from, len);
   if (this->validate_address_(from)) {
-    return this->handle_received_(buf, len) ? HANDLE_UART_OK : FRAME_NOT_HANDLED
+    return this->handle_received_(buf, (size_t) len) ? HANDLE_UART_OK : FRAME_NOT_HANDLED
   }
   return FRAME_NOT_HANDLED;
 }

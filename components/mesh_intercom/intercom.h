@@ -16,20 +16,11 @@
 #include <unordered_map>
 #include <vector>
 
-
 namespace esphome::intercom {
 
 enum class Mode { NONE, MICROPHONE, SPEAKER };
 
-class InterCom : public Component,
-#ifdef USE_ESPNOW
-                 public Parented<espnow::ESPNowComponent>,
-                 public espnow::ESPNowReceivedPacketHandler,
-                 public espnow::ESPNowBroadcastedHandler
-#else
-                 public Parented<MeshmeshComponent>
-#endif
- {
+class InterCom : public Component, public Parented<meshmesg::MeshmeshComponent> {
  public:
   void setup() override;
   void dump_config() override;
@@ -42,7 +33,7 @@ class InterCom : public Component,
     this->play_audio_callback_.add(std::move(callback));
   }
 
-  void set_address(Templatable<uint32_t> address) { this->address_ = address; }
+  void set_address(uint32_t address) { this->address_ = address; }
 
   void set_broadcast_allowed(bool value) { this->broadcast_allowed_ = value; }
 
@@ -57,16 +48,14 @@ class InterCom : public Component,
   size_t buffer_audio(const uint8_t *data, size_t length);
   bool has_buffered_data() { return (this->ring_buffer_mic_.use_count() >= 0) && this->ring_buffer_mic_->available(); }
 
-
   std::shared_ptr<RingBuffer> ring_buffer() { return this->ring_buffer_mic_; }
 
  protected:
   void send_audio_packet_();
-  bool handle_received_(uint8_t * data, size_t size);
+  bool handle_received_(uint8_t *data, size_t size);
   void speaker_start_();
   bool has_mic_source_() { return this->mic_source_ != nullptr; }
   bool has_spr_source_() { return this->speaker_ != nullptr; }
-
 
   microphone::MicrophoneSource *mic_source_{nullptr};
   speaker::Speaker *speaker_{nullptr};
@@ -74,7 +63,7 @@ class InterCom : public Component,
   std::shared_ptr<RingBuffer> ring_buffer_mic_;
 
   bool validate_address_(uint32_t address);
-  Templatable<uint32_t> mesh_address_{};
+  uint32_t mesh_address_{};
 
   audio::AudioStreamInfo target_stream_info_;
 
@@ -96,6 +85,15 @@ template<typename... Ts> class ModeAction : public Action<Ts...>, public Parente
  protected:
   Mode mode_{Mode::NONE};
 };
+
+template<typename... Ts> class ChangeAddressAction : public Action<Ts...>, public Parented<InterCom> {
+  TEMPLATABLE_VALUE(uint32_t, address)
+ public:
+  void play(Ts... x) override {
+    auto address = this->address_.value(x...);
+    this->parent_->set_address(address); }
+};
+
 
 template<typename... Ts> class IsModeCondition : public Condition<Ts...>, public Parented<InterCom> {
  public:
