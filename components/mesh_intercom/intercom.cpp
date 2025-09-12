@@ -154,11 +154,12 @@ void InterCom::send_audio_packet_() {
       size_t read_size = std::min(available, SEND_BUFFER_SIZE);
       size_t bytes_read = this->ring_buffer_mic_->read((void *) &buffer[column], read_size, pdMS_TO_TICKS(100));
       if (bytes_read > 0) {
+        column += bytes_read;
         packet_counter++;
         if (this->address_ != 0)
-          this->parent_->getNetwork()->uniCastSendData(data.data(), data.size(), this->address_);
+          this->parent_->getNetwork()->uniCastSendData(&buffer, column, this->address_);
         else
-          this->parent_->getNetwork()->broadCastSendData(data.data(), data.size());
+          this->parent_->getNetwork()->broadCastSendData(&buffer, column);
       }
     }
   }
