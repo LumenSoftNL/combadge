@@ -177,7 +177,7 @@ bool InterCom::validate_address_(uint32_t address) {
 bool InterCom::handle_received_(uint8_t *data, size_t size) {
   static uint16_t old_counter_value = 0;
   uint16_t new_counter_value = 0;
-  if (sise <= INTERCOM_HEADER_SIZE + sizeof(old_counter_value)) {
+  if (size <= INTERCOM_HEADER_SIZE + sizeof(old_counter_value)) {
     return false;
   }
   if (memcmp(data, INTERCOM_HEADER, INTERCOM_HEADER_SIZE) == 0) {
