@@ -13,8 +13,8 @@ static const char *const TAG = "intercom";
 
 static const size_t SAMPLE_RATE_HZ = 16000;
 
-static const char *const INTERCOM_HEADER_REQ = 0x34;
-static const char *const INTERCOM_HEADER_REP = 0x35;
+static const uint8_t const INTERCOM_HEADER_REQ = 0x34;
+static const uint8_t const INTERCOM_HEADER_REP = 0x35;
 
 static const uint8_t INTERCOM_HEADER_SIZE = 1;
 
@@ -146,7 +146,7 @@ void InterCom::send_audio_packet_() {
     size_t available = this->ring_buffer_mic_->available();
     if (available > 0) {
       uint8_t column = 0;
-      memcpy(&buffer[column], INTERCOM_HEADER, INTERCOM_HEADER_SIZE);
+      memcpy(&buffer[column], &INTERCOM_HEADER_REQ, INTERCOM_HEADER_SIZE);
       column += INTERCOM_HEADER_SIZE;
       memcpy(&buffer[column], &packet_counter, sizeof(packet_counter));
       column += sizeof(packet_counter);
@@ -158,16 +158,16 @@ void InterCom::send_audio_packet_() {
         packet_counter++;
         this->can_send_packet_ = false;
         if (this->address_ != 0)
-          this->parent_->getNetwork()->uniCastSendData((uint8_t*)&buffer, column, this->address_);
+          this->parent_->getNetwork()->uniCastSendData((uint8_t *) &buffer, column, this->address_);
         else
-          this->parent_->getNetwork()->broadCastSendData((uint8_t*)&buffer, column);
+          this->parent_->getNetwork()->broadCastSendData((uint8_t *) &buffer, column);
       }
     }
   }
 }
 
 bool InterCom::validate_address_(uint32_t address) {
-  if (address == 0 ) {
+  if (address == 0) {
     return this->broadcast_allowed_;
   } else if (address == this->address_) {
     return true;
@@ -192,6 +192,7 @@ bool InterCom::handle_received_(uint8_t *data, size_t size) {
     if (this->mode_ == Mode::SPEAKER && !this->wait_to_switch_) {
       this->speaker_->play(data + column, size - column);
     }
+
     return true;
   } else if (data[0] == INTERCOM_HEADER_REP) {
     this->can_send_packet_ = true;
@@ -203,8 +204,8 @@ int8_t InterCom::handleFrame(uint8_t *buf, uint16_t len, uint32_t from) {
   ESP_LOGD(TAG, "Received packet from N%X, len %d", from, len);
   if (this->validate_address_(from)) {
     bool result = this->handle_received_(buf, (size_t) len);
-    this->parent_->getNetwork()->uniCastSendData(((uint8_t*)&result, 1, this->address_)
-    return  ? HANDLE_UART_OK : FRAME_NOT_HANDLED;
+    // this->parent_->getNetwork()->uniCastSendData((uint8_t*)&result, 1, this->address_)
+    return result ? HANDLE_UART_OK : FRAME_NOT_HANDLED;
   }
   return FRAME_NOT_HANDLED;
 }
