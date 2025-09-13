@@ -12,8 +12,11 @@ namespace esphome::intercom {
 static const char *const TAG = "intercom";
 
 static const size_t SAMPLE_RATE_HZ = 16000;
-static const char *const INTERCOM_HEADER = "EnIc1";
-static const uint8_t INTERCOM_HEADER_SIZE = 5;
+
+static const char *const INTERCOM_HEADER_REQ = 0x34;
+static const char *const INTERCOM_HEADER_REP = 0x35;
+
+static const uint8_t INTERCOM_HEADER_SIZE = 1;
 
 static const size_t SEND_BUFFER_SIZE = 240;
 
@@ -23,13 +26,10 @@ float InterCom::get_setup_priority() const { return setup_priority::LATE - 10; }
 
 void InterCom::setup() {
   ESP_LOGCONFIG(TAG, "Setting up Voice Assistant");
-#ifdef USE_ESPNOW
-  this->parent_->register_received_handler(this);
-  this->parent_->register_broadcasted_handler(this);
-#else
+
   this->parent_->getNetwork()->addHandleFrameCb(
       std::bind(&InterCom::handleFrame, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
-#endif
+
   if (this->has_mic_source_()) {
     this->mic_source_->add_data_callback(
         [this](const std::vector<uint8_t> &data) { this->receive_audio(data.data(), data.size()); });
@@ -49,7 +49,7 @@ void InterCom::setup() {
 }
 
 void InterCom::dump_config() {
-  ESP_LOGCONFIG(TAG, "Mesh Intercom:");
+  ESP_LOGCONFIG(TAG, "Mesh Intercom: V2");
   ESP_LOGCONFIG(TAG, "  Buffer size: %d", RING_BUFFER_SIZE);
 }
 
@@ -141,7 +141,7 @@ void InterCom::loop() {
 void InterCom::send_audio_packet_() {
   static uint16_t packet_counter = 0;
   size_t bytes_read = 0;
-  uint8_t buffer[SEND_BUFFER_SIZE + INTERCOM_HEADER_SIZE + 1 + sizeof(packet_counter)];
+  uint8_t buffer[SEND_BUFFER_SIZE + INTERCOM_HEADER_SIZE + sizeof(packet_counter) + 1];
   if (this->can_send_packet_) {
     size_t available = this->ring_buffer_mic_->available();
     if (available > 0) {
@@ -156,6 +156,7 @@ void InterCom::send_audio_packet_() {
       if (bytes_read > 0) {
         column += bytes_read;
         packet_counter++;
+        this->can_send_packet_ = false;
         if (this->address_ != 0)
           this->parent_->getNetwork()->uniCastSendData((uint8_t*)&buffer, column, this->address_);
         else
@@ -177,10 +178,10 @@ bool InterCom::validate_address_(uint32_t address) {
 bool InterCom::handle_received_(uint8_t *data, size_t size) {
   static uint16_t old_counter_value = 0;
   uint16_t new_counter_value = 0;
-  if (size <= INTERCOM_HEADER_SIZE + sizeof(old_counter_value)) {
-    return false;
-  }
-  if (memcmp(data, INTERCOM_HEADER, INTERCOM_HEADER_SIZE) == 0) {
+  if (data[0] == INTERCOM_HEADER_REQ) {
+    if (size <= INTERCOM_HEADER_SIZE + sizeof(old_counter_value)) {
+      return false;
+    }
     uint8_t column = INTERCOM_HEADER_SIZE;
     memcpy(&new_counter_value, data + column, sizeof(old_counter_value));
     column += sizeof(column);
@@ -192,6 +193,8 @@ bool InterCom::handle_received_(uint8_t *data, size_t size) {
       this->speaker_->play(data + column, size - column);
     }
     return true;
+  } else if (data[0] == INTERCOM_HEADER_REP) {
+    this->can_send_packet_ = true;
   }
   return false;
 }
@@ -199,7 +202,9 @@ bool InterCom::handle_received_(uint8_t *data, size_t size) {
 int8_t InterCom::handleFrame(uint8_t *buf, uint16_t len, uint32_t from) {
   ESP_LOGD(TAG, "Received packet from N%X, len %d", from, len);
   if (this->validate_address_(from)) {
-    return this->handle_received_(buf, (size_t) len) ? HANDLE_UART_OK : FRAME_NOT_HANDLED;
+    bool result = this->handle_received_(buf, (size_t) len);
+    this->parent_->getNetwork()->uniCastSendData(((uint8_t*)&result, 1, this->address_)
+    return  ? HANDLE_UART_OK : FRAME_NOT_HANDLED;
   }
   return FRAME_NOT_HANDLED;
 }
