@@ -52,7 +52,7 @@ class InterCom : public Component, public Parented<meshmesh::MeshmeshComponent> 
 
  protected:
   void send_audio_packet_();
-  bool handle_received_(uint8_t *data, size_t size);
+  bool handle_received_(uint8_t *data, size_t size, uint32_t from);
   void speaker_start_();
   bool has_mic_source_() { return this->mic_source_ != nullptr; }
   bool has_spr_source_() { return this->speaker_ != nullptr; }
@@ -72,6 +72,9 @@ class InterCom : public Component, public Parented<meshmesh::MeshmeshComponent> 
   bool wait_to_switch_{false};
   bool can_send_packet_{true};
   bool broadcast_allowed_{false};
+  uint16_t old_counter_value_ = 0;
+  uint16_t packet_counter_ = 0;
+
 
   HighFrequencyLoopRequester high_freq_;
   CallbackManager<void(uint8_t *, size_t)> play_audio_callback_{};

@@ -139,23 +139,22 @@ void InterCom::loop() {
 }
 
 void InterCom::send_audio_packet_() {
-  static uint16_t packet_counter = 0;
   size_t bytes_read = 0;
-  uint8_t buffer[SEND_BUFFER_SIZE + INTERCOM_HEADER_SIZE + sizeof(packet_counter) + 1];
+  uint8_t buffer[SEND_BUFFER_SIZE + INTERCOM_HEADER_SIZE + sizeof(packet_counter_) + 1];
   if (this->can_send_packet_) {
     size_t available = this->ring_buffer_mic_->available();
     if (available > 0) {
       uint8_t column = 0;
       memcpy(&buffer[column], &INTERCOM_HEADER_REQ, INTERCOM_HEADER_SIZE);
       column += INTERCOM_HEADER_SIZE;
-      memcpy(&buffer[column], &packet_counter, sizeof(packet_counter));
-      column += sizeof(packet_counter);
+      memcpy(&buffer[column], &this->packet_counter_, sizeof(uint16_t));
+      column += sizeof(uint16_t);
 
       size_t read_size = std::min(available, SEND_BUFFER_SIZE);
       size_t bytes_read = this->ring_buffer_mic_->read((void *) &buffer[column], read_size, pdMS_TO_TICKS(100));
       if (bytes_read > 0) {
         column += bytes_read;
-        packet_counter++;
+        this->packet_counter_++;
         this->can_send_packet_ = false;
         if (this->address_ != 0)
           this->parent_->getNetwork()->uniCastSendData((uint8_t *) &buffer, column, this->address_);
@@ -175,8 +174,7 @@ bool InterCom::validate_address_(uint32_t address) {
   return false;
 }
 
-bool InterCom::handle_received_(uint8_t *data, size_t size) {
-  static uint16_t old_counter_value = 0;
+bool InterCom::handle_received_(uint8_t *data, size_t size, uint32_t from) {
   uint16_t new_counter_value = 0;
   if (data[0] == INTERCOM_HEADER_REQ) {
     if (size <= INTERCOM_HEADER_SIZE + sizeof(old_counter_value)) {
@@ -185,17 +183,28 @@ bool InterCom::handle_received_(uint8_t *data, size_t size) {
     uint8_t column = INTERCOM_HEADER_SIZE;
     memcpy(&new_counter_value, data + column, sizeof(old_counter_value));
     column += sizeof(column);
-    if (new_counter_value != old_counter_value) {
+    uint8_t rep[4] = {0};
+    rep[0] = INTERCOM_HEADER_REP;
+    rep[1] = 0x06;
+    espmeshmesh::uint16toBuffer(rep + 2, new_counter_value);
+
+    if (new_counter_value != this->old_counter_value_) {
       ESP_LOGE(TAG, "packet counter missmatch: %d vs %d", new_counter_value, old_counter_value);
+      rep[1] = 0x15;
     }
-    old_counter_value = new_counter_value + 1;
+
+    this->parent_->getNetwork()->uniCastSendData(rep, 4, from)
+
+    this->old_counter_value_ = new_counter_value + 1;
     if (this->mode_ == Mode::SPEAKER && !this->wait_to_switch_) {
       this->speaker_->play(data + column, size - column);
     }
 
     return true;
   } else if (data[0] == INTERCOM_HEADER_REP) {
-    this->can_send_packet_ = true;
+    if (espmeshmesh::uint16toBuffer(data+2) == this->old_counter_value_-1 ) {
+      this->can_send_packet_ = true;
+    }
   }
   return false;
 }
@@ -203,8 +212,7 @@ bool InterCom::handle_received_(uint8_t *data, size_t size) {
 int8_t InterCom::handleFrame(uint8_t *buf, uint16_t len, uint32_t from) {
   ESP_LOGD(TAG, "Received packet from N%X, len %d", from, len);
   if (this->validate_address_(from)) {
-    bool result = this->handle_received_(buf, (size_t) len);
-    // this->parent_->getNetwork()->uniCastSendData((uint8_t*)&result, 1, this->address_)
+    bool result = this->handle_received_(buf, (size_t) len, uint32_t from);
     return result ? HANDLE_UART_OK : FRAME_NOT_HANDLED;
   }
   return FRAME_NOT_HANDLED;
