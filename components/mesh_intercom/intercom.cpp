@@ -13,8 +13,8 @@ static const char *const TAG = "intercom";
 
 static const size_t SAMPLE_RATE_HZ = 16000;
 
-static const uint8_t const INTERCOM_HEADER_REQ = 0x34;
-static const uint8_t const INTERCOM_HEADER_REP = 0x35;
+static const uint8_t INTERCOM_HEADER_REQ = 0x34;
+static const uint8_t INTERCOM_HEADER_REP = 0x35;
 
 static const uint8_t INTERCOM_HEADER_SIZE = 1;
 
