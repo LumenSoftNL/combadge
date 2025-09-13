@@ -202,7 +202,7 @@ bool InterCom::handle_received_(uint8_t *data, size_t size, uint32_t from) {
 
     return true;
   } else if (data[0] == INTERCOM_HEADER_REP) {
-    if (espmeshmesh::uint16toBuffer(data+2) == this->old_counter_value_-1 ) {
+    if (espmeshmesh::uint16FromBuffer(data+2) == this->old_counter_value_-1 ) {
       this->can_send_packet_ = true;
     }
   }
