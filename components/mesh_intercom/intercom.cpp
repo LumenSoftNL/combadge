@@ -157,9 +157,9 @@ void InterCom::send_audio_packet_() {
         column += bytes_read;
         packet_counter++;
         if (this->address_ != 0)
-          this->parent_->getNetwork()->uniCastSendData(&buffer, column, this->address_);
+          this->parent_->getNetwork()->uniCastSendData((uint8_t*)&buffer, column, this->address_);
         else
-          this->parent_->getNetwork()->broadCastSendData(&buffer, column);
+          this->parent_->getNetwork()->broadCastSendData((uint8_t*)&buffer, column);
       }
     }
   }
@@ -174,7 +174,7 @@ bool InterCom::validate_address_(uint32_t address) {
   return false;
 }
 
-bool InterCom::handle_receive_(uint8_t *data, size_t size) {
+bool InterCom::handle_received_(uint8_t *data, size_t size) {
   static uint16_t old_counter_value = 0;
   uint16_t new_counter_value = 0;
   if (sise <= INTERCOM_HEADER_SIZE + sizeof(old_counter_value)) {
@@ -199,7 +199,7 @@ bool InterCom::handle_receive_(uint8_t *data, size_t size) {
 int8_t InterCom::handleFrame(uint8_t *buf, uint16_t len, uint32_t from) {
   ESP_LOGD(TAG, "Received packet from N%X, len %d", from, len);
   if (this->validate_address_(from)) {
-    return this->handle_received_(buf, (size_t) len) ? HANDLE_UART_OK : FRAME_NOT_HANDLED
+    return this->handle_received_(buf, (size_t) len) ? HANDLE_UART_OK : FRAME_NOT_HANDLED;
   }
   return FRAME_NOT_HANDLED;
 }
