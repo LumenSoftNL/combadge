@@ -177,23 +177,23 @@ bool InterCom::validate_address_(uint32_t address) {
 bool InterCom::handle_received_(uint8_t *data, size_t size, uint32_t from) {
   uint16_t new_counter_value = 0;
   if (data[0] == INTERCOM_HEADER_REQ) {
-    if (size <= INTERCOM_HEADER_SIZE + sizeof(old_counter_value)) {
+    if (size <= INTERCOM_HEADER_SIZE + sizeof(uint16_t)) {
       return false;
     }
     uint8_t column = INTERCOM_HEADER_SIZE;
-    memcpy(&new_counter_value, data + column, sizeof(old_counter_value));
-    column += sizeof(column);
+    memcpy(&new_counter_value, data + column, sizeof(uint16_t));
+    column += sizeof(uint16_t);
     uint8_t rep[4] = {0};
     rep[0] = INTERCOM_HEADER_REP;
     rep[1] = 0x06;
     espmeshmesh::uint16toBuffer(rep + 2, new_counter_value);
 
     if (new_counter_value != this->old_counter_value_) {
-      ESP_LOGE(TAG, "packet counter missmatch: %d vs %d", new_counter_value, old_counter_value);
+      ESP_LOGE(TAG, "packet counter missmatch: %d vs %d", new_counter_value, this->old_counter_value_);
       rep[1] = 0x15;
     }
 
-    this->parent_->getNetwork()->uniCastSendData(rep, 4, from)
+    this->parent_->getNetwork()->uniCastSendData(rep, 4, from);
 
     this->old_counter_value_ = new_counter_value + 1;
     if (this->mode_ == Mode::SPEAKER && !this->wait_to_switch_) {
@@ -212,7 +212,7 @@ bool InterCom::handle_received_(uint8_t *data, size_t size, uint32_t from) {
 int8_t InterCom::handleFrame(uint8_t *buf, uint16_t len, uint32_t from) {
   ESP_LOGD(TAG, "Received packet from N%X, len %d", from, len);
   if (this->validate_address_(from)) {
-    bool result = this->handle_received_(buf, (size_t) len, uint32_t from);
+    bool result = this->handle_received_(buf, (size_t) len, from);
     return result ? HANDLE_UART_OK : FRAME_NOT_HANDLED;
   }
   return FRAME_NOT_HANDLED;
