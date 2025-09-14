@@ -5,12 +5,6 @@
 #include "esphome/core/automation.h"
 #include "esphome/core/component.h"
 #include "esphome/core/helpers.h"
-#include "esphome/core/ring_buffer.h"
-
-#include "esphome/components/audio/audio.h"
-#include "esphome/components/microphone/microphone_source.h"
-#include "esphome/components/speaker/speaker.h"
-
 #include "esphome/components/meshmesh/meshmesh.h"
 
 #include <unordered_map>
