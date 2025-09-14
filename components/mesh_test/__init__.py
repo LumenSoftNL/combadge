@@ -4,13 +4,10 @@ import esphome.codegen as cg
 from esphome.const import (
     CONF_ADDRESS,
     CONF_ID,
-    CONF_MICROPHONE,
-    CONF_SPEAKER,
     CONF_MODE,
 )
 from esphome import automation
 from esphome.automation import register_action
-from esphome.components import microphone, speaker
 from esphome.components.meshmesh import MeshmeshComponent
 
 
@@ -37,13 +34,6 @@ CONFIG_SCHEMA = cv.All(
     cv.Schema(
         {
             cv.GenerateID(): cv.declare_id(MeshTest),
-            cv.Optional(CONF_MICROPHONE): microphone.microphone_source_schema(
-                min_bits_per_sample=16,
-                max_bits_per_sample=16,
-                min_channels=1,
-                max_channels=1,
-            ),
-            cv.Optional(CONF_SPEAKER): cv.use_id(speaker.Speaker),
             cv.Optional(CONF_ALLOW_BROADCAST): cv.boolean,
             cv.GenerateID(CONF_MESHMESH_ID): cv.use_id(MeshmeshComponent),
             cv.Required(CONF_ADDRESS): cv.hex_uint32_t,
@@ -101,3 +91,4 @@ async def meshtest_action_code(config, action_id, template_arg, args):
     template_ = await cg.templatable(config[CONF_ADDRESS], args, cg.uint32)
     cg.add(var.set_address(template_))
     return var
+
