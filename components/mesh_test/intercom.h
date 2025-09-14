@@ -10,30 +10,17 @@
 #include "esphome/components/audio/audio.h"
 #include "esphome/components/microphone/microphone_source.h"
 #include "esphome/components/speaker/speaker.h"
-#ifdef USE_ESPNOW
-#include "esphome/components/espnow/espnow_component.h"
-#endif
-#ifdef USE_MESH_MESH
+
 #include "esphome/components/meshmesh/meshmesh.h"
-#endif
 
 #include <unordered_map>
 #include <vector>
-
 
 namespace esphome::intercom {
 
 enum class Mode { NONE, MICROPHONE, SPEAKER };
 
-class InterCom : public Component,
-#ifdef USE_ESPNOW
-                 public Parented<espnow::ESPNowComponent>,
-                 public espnow::ESPNowReceivedPacketHandler,
-                 public espnow::ESPNowBroadcastedHandler
-#else
-                 public Parented<MeshmeshComponent>
-#endif
- {
+class InterCom : public Component, public Parented<meshmesh::MeshmeshComponent> {
  public:
   void setup() override;
   void dump_config() override;
@@ -46,11 +33,7 @@ class InterCom : public Component,
     this->play_audio_callback_.add(std::move(callback));
   }
 
-#ifdef USE_ESPNOW
-  void set_address(Templatable<espnow::peer_address_t> address) { this->address_ = address; }
-#else
-  void set_address(Templatable<uint32_t> address) { this->address_ = address; }
-#endif
+  void set_address(uint32_t address) { this->address_ = address; }
 
   void set_broadcast_allowed(bool value) { this->broadcast_allowed_ = value; }
 
@@ -59,45 +42,28 @@ class InterCom : public Component,
 
   float get_setup_priority() const override;
 
-#ifdef USE_ESPNOW
-  bool on_received(const espnow::ESPNowRecvInfo &info, const uint8_t *data, uint8_t size) override;
-  bool on_broadcasted(const espnow::ESPNowRecvInfo &info, const uint8_t *data, uint8_t size) override {
-    if (this->broadcast_allowed_) {
-      return this->on_received(info, data,  size);
-    }
-    return false;
-  };
-#else
   int8_t handleFrame(uint8_t *buf, uint16_t len, uint32_t from);
-#endif
 
   void receive_audio(const uint8_t *data, size_t length) { this->buffer_audio(data, length); }
   size_t buffer_audio(const uint8_t *data, size_t length);
   bool has_buffered_data() { return (this->ring_buffer_mic_.use_count() >= 0) && this->ring_buffer_mic_->available(); }
 
-
   std::shared_ptr<RingBuffer> ring_buffer() { return this->ring_buffer_mic_; }
 
  protected:
   void send_audio_packet_();
-  bool handle_received_(peer_address_t address, uint8_t * data, size_t size);
+  bool handle_received_(uint8_t *data, size_t size, uint32_t from);
   void speaker_start_();
   bool has_mic_source_() { return this->mic_source_ != nullptr; }
   bool has_spr_source_() { return this->speaker_ != nullptr; }
-
 
   microphone::MicrophoneSource *mic_source_{nullptr};
   speaker::Speaker *speaker_{nullptr};
 
   std::shared_ptr<RingBuffer> ring_buffer_mic_;
 
-#ifdef USE_ESPNOW
-  bool validate_address_(const uint8_t *address);
-  Templatable<espnow::peer_address_t> address_{};
-#else
   bool validate_address_(uint32_t address);
-  Templatable<uint32_t> mesh_address_{};
-#endif
+  uint32_t address_{0xffffffff};
 
   audio::AudioStreamInfo target_stream_info_;
 
@@ -106,6 +72,9 @@ class InterCom : public Component,
   bool wait_to_switch_{false};
   bool can_send_packet_{true};
   bool broadcast_allowed_{false};
+  uint16_t old_counter_value_ = 0;
+  uint16_t packet_counter_ = 0;
+
 
   HighFrequencyLoopRequester high_freq_;
   CallbackManager<void(uint8_t *, size_t)> play_audio_callback_{};
@@ -119,6 +88,15 @@ template<typename... Ts> class ModeAction : public Action<Ts...>, public Parente
  protected:
   Mode mode_{Mode::NONE};
 };
+
+template<typename... Ts> class ChangeAddressAction : public Action<Ts...>, public Parented<InterCom> {
+  TEMPLATABLE_VALUE(uint32_t, address)
+ public:
+  void play(Ts... x) override {
+    auto address = this->address_.value(x...);
+    this->parent_->set_address(address); }
+};
+
 
 template<typename... Ts> class IsModeCondition : public Condition<Ts...>, public Parented<InterCom> {
  public:

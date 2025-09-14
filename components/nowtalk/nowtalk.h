@@ -13,89 +13,108 @@
 #include <queue>
 #include <vector>
 
-namespace esphome {
-namespace nowtalk {
+namespace esphome::nowtalk {
 
+static const uint8_t QUEUE_SIZE = 16;
 
-uint64_t getEfuseMac(void)
-{
-    uint64_t _chipmacid = 0LL;
-    esp_efuse_mac_get_default((uint8_t*) (&_chipmacid));
-    return _chipmacid;
-}
+std::string badgeID() bool checkBadgeID(std::string code);
 
-std::vector<unsigned char> badgeID_;
+struct NowTalkConfig {
+  boolean wakeup = false;
+  unsigned long lastTime = 0;
+  unsigned long timerPing = 30000;  // send readings timer
+  unsigned long timerSleep = 90000;
+  bool registrationMode = false;
+  char masterIP[40] = "<None>";
+  char userName[64] = "<None>";
+  uint8_t masterSwitchboard[6] = {0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+  byte channel = 0;
+  char switchboard[32] = "";
+  int sprVolume = 40;
+  int sleepID = -1;
+  int PingID = -1;
+  int timeoutID = -1;
+  short heartbeat = 0;
+  size_t updateSize = 0;
+};
 
-std::vector<unsigned char> badgeID(){
-    if (badgeID_.empty()) {
-        static char chars[] = "0123456789AbCdEfGhIjKlMnOpQrStUvWxYz"; //aBcDeFgHiJkLmNoPqRsTuVwXyZ
-        uint8_t base = sizeof(chars);
+typedef struct {
+  uint8_t mac[6];
+  uint8_t code;
+  char buf[256];
+  size_t count;
+} nowtalk_t;
 
-        uint32_t chipId = 0xa5000000;
-        uint8_t crc = 0;
-        uint64_t mac = getEfuseMac() ;
-        for (int i = 0; i < 17; i = i + 8)
-        {
-            chipId |= ((mac >> (40 - i)) & 0xff) << i;
-        }
+typedef struct {
+  uint8_t status;
+  uint8_t mac[6];
+  char name[64];
+  char orginIP[32];
+  byte prev;
+  byte next;
+} nowtalklist_t;
 
-        do {
-            badgeID_.push_back(baseChars[chipId % base]); // Add on the left
-            crc += chipId % base;
-            chipId /= base;
-        } while (chipId != 0);
-        badgeID_.push_back(baseChars[crc % base]);
-    }
-    return badgeID_;
-}
+const byte _maxUserCount = 24;
 
-std::string badgeIDStr() {
-    if (badgeID_.empty()) {
-        badgeID();
-    }
-    std::string result(badgeID_.begin(), badgeID_.end()) ;
-    return result;
-}
+typedef struct {
+  byte first_element = 0;
+  byte last_element = 0;
+  byte current = 0xff;
+  byte previous = 0xff;
+  byte count = 0;
+  const byte maxCount = _maxUserCount;
+} nowtalklist_stats_t;
 
-bool checkBadgeID(std::vector< unsigned uint8_t > code) {
-    std::string baseChars = "0123456789AbCdEfGhIjKlMnOpQrStUvWxYz";
-    uint8_t baseCount = baseChars.size() + 1;
-    baseChars += "aBcDeFgHiJkLmNoPqRsTuVwXyZ";
-    uint8_t length = code.size();
-    uint16_t count = 0;
-    if (length != 8) return false;
-    for (int8_t index = 6; index >= 0; index--) {
-        std::string::size_type chr = code.at(index);
-        count += baseChars.find((char) chr);
-    }
-    uint8_t crc = count % baseCount;
-    std::string::size_type chr = code.at(7);
-    return crc == baseChars.find((char) chr);
-}
-
-
-class NowTalkClient  : public PollingComponent, public ESPNowProtocol {
+class NowTalkClient : public Component,
+                      public Parented<espnow::ESPNowComponent>,
+                      public espnow::ESPNowUnknownPeerHandler,
+                      public espnow::ESPNowReceivedPacketHandler,
+                      public espnow::ESPNowBroadcastedHandler {
  public:
   void setup() override;
-  void on_receive(ESPNowPacket &packet) override;
-  void on_sent(ESPNowPacket &packet, bool status) override;
+  void dump_config() override;
+  void loop() override;
 
-  uint32_t get_protocol_id() override { return 0x547c6b; }
-  std::string get_protocol_name() override { return "NowTalk Intergration"; }
+  bool on_unknown_peer(const espnow::ESPNowRecvInfo &info, const uint8_t *data, uint8_t size) override;
+  bool on_received(const espnow::ESPNowRecvInfo &info, const uint8_t *data, uint8_t size) override;
+  bool on_broadcasted(const espnow::ESPNowRecvInfo &info, const uint8_t *data, uint8_t size) override;
+
+  std::string get_value(std::string data, char separator, int index);
+
+  esp_err_t send_message(const uint8_t *mac, uint8_t action, std::string message);
+  esp_err_t broadcast(uint8_t action, std::string message);
+
+  void clear_badge();
+  void check_reaction();
+  void on_no_reaction(AlarmID_t ID);
+  void on_ping(AlarmID_t ID);
+
  protected:
   void load_config_(bool clear = false);
   void save_config_();
   std::string get_value_(std::string data, char separator, uint8_t index);
+  void handle_package_(const uint8_t *mac, const uint8_t action, const char *info, size_t count);
+  void write_buffer_(const uint8_t *mac, uint8_t *buf, size_t count)
+
+#ifdef USE_UART
+  void handle_uart_();
+  void read_serial_();
+  std::string inputString_ = "";  // a String to hold incoming data
+  bool stringComplete_ = false;   // whether the string is complete
+#endif
 
   ESPPreferenceObject cfg_;
-  nowTalkConfig config_; //
+  NowTalkConfig config_;  //
 
-  nowtalk_t circbuf[QUEUE_SIZE] = {};
+  nowtalk_t circbuf_[QUEUE_SIZE] = {};
+  uint8_t write_idx_{0};
+  uint8_t read_idx_{0};
 
-  std::string inputString_ = "";     // a String to hold incoming data
-  bool stringComplete_ = false; // whether the string is complete
+  nowtalklist_stats_t stats;
+  nowtalklist_t users[_maxUserCount];
+
+  bool scan_of_master_{false};
+  bool failed_to_send_packet_{false};
 };
 
-
-}  // namespace esp_now
-}  // namespace esphome
+}  // namespace esphome::nowtalk

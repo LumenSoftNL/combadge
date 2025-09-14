@@ -10,19 +10,10 @@ size_t IntercomSpeaker::play(const uint8_t *data, size_t length) {
   if (this->is_stopped()) {
     this->start();
   }
-  size_t copied_size = 0;
-  while (length > copied_size) {
-    this->wdt_counter_++;
-    size_t copy_size = std::min(length - copied_size, INTERIM_BUFFER_SIZE);
-    memcpy((void *) &this->interim_buffer_, data + copied_size, copy_size);
-    size_t copied = this->parent_->buffer_audio((uint8_t *) &this->interim_buffer_, copy_size);
-    if (copied == 0) {
-      break;
-    }
-    copied_size += copied;
-    yield();
-  }
-  return copied_size;
+  this->wdt_counter_++;
+  size_t copied =this->parent_->ring_buffer()->write_without_replacement(data, length , pdMS_TO_TICKS(100));
+  yield();
+  return copied;
 }
 
 void IntercomSpeaker::start() {
@@ -31,7 +22,6 @@ void IntercomSpeaker::start() {
 }
 
 void IntercomSpeaker::stop() {
-  // this->parent_->set_mode(intercom::Mode::NONE);
   this->state_ = speaker::STATE_STOPPING;
 }
 
@@ -41,6 +31,7 @@ void IntercomSpeaker::loop() {
     this->wdt_counter_ = 0;
   }
   if (this->state_ == speaker::STATE_STOPPING && !this->has_buffered_data()) {
+    this->parent_->set_mode(intercom::Mode::NONE);
     this->state_ = speaker::STATE_STOPPED;
   }
 }
