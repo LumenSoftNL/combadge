@@ -78,4 +78,4 @@ binary_sensor:
 
 mesh_test:
   id: meshtesting
-  address: 0
+  address: 0xffffffff
