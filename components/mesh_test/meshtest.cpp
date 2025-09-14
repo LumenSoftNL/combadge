@@ -26,8 +26,6 @@ void MeshTest::setup() {
   this->parent_->getNetwork()->addHandleFrameCb(
       std::bind(&MeshTest::handleFrame, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 
-  }
-
   this->high_freq_.start();
 }
 
@@ -37,7 +35,7 @@ void MeshTest::dump_config() {
 }
 
 void MeshTest::loop() {
-  if (this->send_frames_){
+  if (this->send_frames_) {
     this->send_packet_();
   }
 }
@@ -54,8 +52,7 @@ void MeshTest::send_packet_() {
 
     espmeshmesh::uint32toBuffer(buffer + colum, 0x14233241);
 
-    column += SEND_BUFFER_SIZE
-    this->packet_counter_++;
+    column += SEND_BUFFER_SIZE this->packet_counter_++;
     this->can_send_packet_ = false;
     if (this->address_ != UINT32_MAX)
       this->parent_->getNetwork()->uniCastSendData((uint8_t *) &buffer, column, this->address_);
@@ -100,8 +97,8 @@ bool MeshTest::handle_received_(uint8_t *data, size_t size, uint32_t from) {
     return true;
 
   } else if (data[0] == MESHTEST_HEADER_REP) {
-      uint16_t cntr = espmeshmesh::uint16FromBuffer(data+2);
-    if (espmeshmesh::uint16FromBuffer(data+2) == this->old_counter_value_-1 ) {
+    uint16_t cntr = espmeshmesh::uint16FromBuffer(data + 2);
+    if (espmeshmesh::uint16FromBuffer(data + 2) == this->old_counter_value_ - 1) {
       ESP_LOGD(TAG, "Received N%X.%d: %s", from, cntr, format_hex_pretty(data, size).c_str());
       this->can_send_packet_ = true;
     }
