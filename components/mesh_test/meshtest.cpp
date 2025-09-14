@@ -28,7 +28,6 @@ void MeshTest::setup() {
 
   }
 
-  this->target_stream_info_ = audio::AudioStreamInfo(16, 1, 16000);
   this->high_freq_.start();
 }
 

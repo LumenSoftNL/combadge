@@ -35,21 +35,20 @@ class MeshTest : public Component, public Parented<meshmesh::MeshmeshComponent> 
   bool validate_address_(uint32_t address);
   uint32_t address_{0xffffffff};
 
-  audio::AudioStreamInfo target_stream_info_;
+  uint16_t old_counter_value_ = 0;
+  uint16_t packet_counter_ = 0;
 
   bool send_frames_{false};
 
   bool can_send_packet_{true};
   bool broadcast_allowed_{false};
-  uint16_t old_counter_value_ = 0;
-  uint16_t packet_counter_ = 0;
 
   HighFrequencyLoopRequester high_freq_;
 };
 
 template<typename... Ts> class ModeAction : public Action<Ts...>, public Parented<MeshTest> {
  public:
-  void set_send_frames(Mode send_frames) { this->send_frames_ = send_frames; }
+  void set_send_frames(bool send_frames) { this->send_frames_ = send_frames; }
   void play(Ts... x) override { this->parent_->set_send_frames(this->send_frames_); }
 
  protected:
