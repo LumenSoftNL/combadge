@@ -1,51 +1,81 @@
 substitutions:
-  name: "test"
-  friendly_name: "ComBadge test"
-  project_version: "0.5a"
-  rttti_gain: "0.65"
+  name: lum-iot99
+  comment: Mesh Test
+  log: DEBUG
+  area: user
+  rttti_gain: "0.68"
+
+  use_address: "${name}.local"
+  project_version: "0.5"
+  model_version: "0"
+  model: combadge
 
 esphome:
-  name: "${name}"
-  name_add_mac_suffix: true
-  friendly_name: "${friendly_name}"
+  name: ${name}
+  comment: "${name} - ${area}_${comment}"
+  friendly_name: "${comment}"
+  area: ${area}
+
   project:
-    name: lumensoft.${friendly_name}
-    version: ${project_version}
+    name: lumensoft.${model}
+    version: ${project_version}.${model_version}
 
 esp32:
   board: m5stack-atom
   framework:
     type: esp-idf
 
-# To be able to get logs from the device via serial and api.
-logger:
-  level: verbose
 
 external_components:
-  - source: github://pr#7141
-    components: [ espnow ]
-    refresh: 1 sec
+  - source: github://EspMeshMesh/esphome-meshmesh
+    refresh: 10min
   - source:
-      type: local
-      path: C:\Development\projects\combadge\components
+      type: git
+      url: https://github.com/LumenSoftNL/combadge
+      ref: mesh_test
+    refresh: 0sec
 
-#esp_adf:
+meshmesh:
+  baud_rate: 0
+  rx_buffer_size: 0
+  tx_buffer_size: 0
+  password: aABbCcdD
+  channel: 3
 
-espnow:
-  auto_add_peer: true
-  peers:
-    - FF:FF:FF:FF:FF:FF
-  on_receive:
-    - logger.log:
-        format: "New Packet Received: RSSI: %u| %s"
-        args: [packet.rssi, packet.get_payload()]
+socket:
+  implementation: meshmesh_esp32
+
+logger:
+  level: DEBUG
+
+api:
+  reboot_timeout: 0s
+
+mdns:
+  disabled: True
+
+psram:
+  disabled: True
 
 binary_sensor:
+  # button does the following:
+  # short click - stop a timer
+  # if no timer then restart either microwakeword or voice assistant continuous
   - platform: gpio
     pin:
       number: GPIO39
       inverted: true
+      # allow_other_uses: true
     name: Button
     disabled_by_default: true
     entity_category: diagnostic
     id: echo_button
+    on_press:
+      - meshtest.mode: on
+    on_release:
+      - meshtest.mode: off
+
+mesh_test:
+  id: meshtesting
+  address: 0
+
