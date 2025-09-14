@@ -210,7 +210,8 @@ bool InterCom::handle_received_(uint8_t *data, size_t size, uint32_t from) {
 }
 
 int8_t InterCom::handleFrame(uint8_t *buf, uint16_t len, uint32_t from) {
-  ESP_LOGD(TAG, "Received packet from N%X, len %d", from, len);
+    uint16_t lenx = std::min(len, 10);
+    ESP_LOGD(TAG, "Received packet from N%X: %s", from, format_hex_pretty(buf, lenx).c_str());
   if (this->validate_address_(from)) {
     bool result = this->handle_received_(buf, (size_t) len, from);
     return result ? HANDLE_UART_OK : FRAME_NOT_HANDLED;
