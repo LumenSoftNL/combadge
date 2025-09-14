@@ -31,7 +31,6 @@ void MeshTest::setup() {
 
 void MeshTest::dump_config() {
   ESP_LOGCONFIG(TAG, "Mesh MeshTest: V2");
-  ESP_LOGCONFIG(TAG, "  Buffer size: %d", RING_BUFFER_SIZE);
 }
 
 void MeshTest::loop() {
@@ -50,9 +49,10 @@ void MeshTest::send_packet_() {
     memcpy(&buffer[column], &this->packet_counter_, sizeof(uint16_t));
     column += sizeof(uint16_t);
 
-    espmeshmesh::uint32toBuffer(buffer + colum, 0x14233241);
+    espmeshmesh::uint32toBuffer(buffer + column, 0x14233241);
 
-    column += SEND_BUFFER_SIZE this->packet_counter_++;
+    column += SEND_BUFFER_SIZE;
+    this->packet_counter_++;
     this->can_send_packet_ = false;
     if (this->address_ != UINT32_MAX)
       this->parent_->getNetwork()->uniCastSendData((uint8_t *) &buffer, column, this->address_);
