@@ -3,9 +3,6 @@ substitutions:
   project_version: "0.6"
   comment: "Woonkamer"
 
-
-
-
 esphome:
   name: ${name}
   comment: "${name} - ${comment}"
@@ -16,28 +13,27 @@ esphome:
     version: ${project_version}
 
 esp32:
-  board: esp32dev
+  board: esp32-gateway
   framework:
     type: esp-idf
 
 
 ethernet:
-  type: LAN8720
-  mdc_pin: GPIO23
-  mdio_pin: GPIO18
-  clk:
-    pin: GPIO17
-    mode: CLK_OUT
-  phy_addr: 0
-  power_pin: GPIO5
 #  type: LAN8720
 #  mdc_pin: GPIO23
 #  mdio_pin: GPIO18
 #  clk:
-#    pin: GPIO0
-#    mode: CLK_EXT_IN
-#  phy_addr: 1
-#  power_pin: GPIO16
+#    pin: GPIO17
+#    mode: CLK_OUT
+#  phy_addr: 0
+  type: LAN8720
+  mdc_pin: GPIO23
+  mdio_pin: GPIO18
+  clk:
+    pin: GPIO0
+    mode: CLK_EXT_IN
+  phy_addr: 1
+  power_pin: GPIO16
 
 ota:
   platform: esphome
@@ -74,41 +70,39 @@ external_components:
       type: local
       path: D:\Development\projects\combadge\components
     refresh: 0sec
-
 #  - source:
 #      type: git
 #      url: https://github.com/LumenSoftNL/combadge
 #      ref: main
 
-psram:
-  disabled: true
+i2s_audio:
+  - id: i2s_audio_bus
+    i2s_lrclk_pin: GPIO33
+    i2s_bclk_pin: GPIO19
 
-network:
-  enable_ipv6: true
-
-microphone:
-  - platform: intercom
-    intercom: echo_intercom
-    id: intercom_mic
 
 speaker:
   - platform: intercom
     intercom: echo_intercom
     id: intercom_spr
 
-voice_assistant:
-  id: va
-  microphone: intercom_mic
-  speaker: intercom_spr
+media_player:
+  - platform: speaker
+    name: none
+    id: speaker_media_player_id
+    announcement_pipeline:
+      speaker: intercom_spr
+      num_channels: 1
+      sample_rate: 16000
+      format: WAV
+    codec_support_enabled: false
+    buffer_size: 4000
 
-  noise_suppression_level: 2
-  auto_gain: 31dBFS
-  volume_multiplier: 3.0
-  use_wake_word: false
 
 espnow:
-  auto_add_peer: false
+  auto_add_peer: true
   channel: 1
 
 intercom:
   id: echo_intercom
+  address: ff:ff:ff:ff:ff:ff

@@ -4,6 +4,12 @@ substitutions:
   project_version: "0.6"
   rttti_gain: "0.90"
 
+globals:
+   - id: my_global
+     type: uint8_t[6]
+     restore_value: yes
+     initial_value: '{0,0,0,0,0,0}'
+
 esphome:
   name: "${name}"
   name_add_mac_suffix: true
@@ -17,37 +23,32 @@ esp32:
   framework:
     type: esp-idf
 
-
 # To be able to get logs from the device via serial and api.
 logger:
-  level: VERBOSE
-
-external_components:
-  - source:
-      type: local
-      path: D:\Development\projects\combadge\components
-    refresh: 0sec
+  level: very_verbose
 
 espnow:
   auto_add_peer: true
   channel: 1
+
+
   on_receive:
     - logger.log:
-        format: "Received from: %s = '%s'  RSSI: %d"
+        format: "Received from: %s = '%s'\n  RSSI: %d"
         args:
           - format_mac_address_pretty(info.src_addr).c_str()
           - format_hex_pretty(data, size).c_str()
           - info.rx_ctrl->rssi
   on_broadcast:
     - logger.log:
-        format: "Broadcast from: %s = '%s'  RSSI: %d"
+        format: "Broadcast from: %s = '%s'\n  RSSI: %d"
         args:
           - format_mac_address_pretty(info.src_addr).c_str()
           - format_hex_pretty(data, size).c_str()
           - info.rx_ctrl->rssi
   on_unknown_peer:
     - logger.log:
-        format: "Unknown peer: %s = '%s'  RSSI: %d"
+        format: "Unknown peer: %s = '%s'\n  RSSI: %d"
         args:
           - format_mac_address_pretty(info.src_addr).c_str()
           - format_hex_pretty(data, size).c_str()
@@ -68,31 +69,38 @@ binary_sensor:
       then:
         - logger.log: "send packet (A)"
         - espnow.send:
-            address: E8:6B:EA:21:3C:B8
-            data: [0x11,  0x01, 0x02, 0x03, 0x04, 0x04]
+            address: E8:6B:EA:23:F7:28
+            data: [0xAA, 0x01, 0x02, 0x03, 0x04, 0x04]
             on_sent:
-              - logger.log: "A: ESPNow message sent successfully"
+              - logger.log: "  A: ESPNow message sent successfully"
             on_error:
-              - logger.log: "A: ESPNow message failed to send"
+              - logger.log:
+                  format: "  A: ESPNow message failed to send"
+                  level: error
             wait_for_sent: true
             continue_on_error: true
         - logger.log: "send packet (B)"
         - espnow.send:
-            address: E8:6B:EA:24:22:05
-            data: [0x22, 0x01, 0x02, 0x03, 0x04, 0x05]
+            address: E8:6B:EA:24:22:04
+            data: [0xBB, 0x01, 0x02, 0x03, 0x04, 0x05]
             on_sent:
-              - logger.log: "B: ESPNow message sent successfully"
+              - logger.log: "  B: ESPNow message sent successfully"
             on_error:
-              - logger.log: "B: ESPNow message failed to send"
+              - logger.log:
+                  format: "  B: ESPNow message failed to send"
+                  level: error
             wait_for_sent: true
             continue_on_error: true
-        - logger.log: "send packet (C)"
+        - logger.log: "send packet (Broadcast)"
         - espnow.broadcast:
-            data: [0x33, 0x01, 0x02, 0x03, 0x04, 0x05]
+            data: [0xCC, 0x01, 0x02, 0x03, 0x04, 0x05]
             on_sent:
-              - logger.log: "C: ESPNow message sent successfully"
+              - logger.log: "  C: ESPNow message sent successfully"
             on_error:
-              - logger.log: "C: ESPNow message failed to send"
+              - logger.log:
+                  format: "  C: ESPNow message failed to send"
+                  level: error
+
             wait_for_sent: true
             continue_on_error: true
         - logger.log: "done"
@@ -102,5 +110,5 @@ binary_sensor:
       then:
         - espnow.peer.add:
             address: 11:22:33:44:55:66
-        - espnow.peer.delete:
-            address: 11:22:33:44:55:66
+#        - espnow.peer.delete:
+#            address: 11:22:33:44:55:66

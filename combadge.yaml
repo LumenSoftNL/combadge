@@ -19,31 +19,13 @@ esp32:
 
 # To be able to get logs from the device via serial and api.
 logger:
-  level: verbose
+  level: debug
 
 external_components:
-  #  - source:
-  #      type: local
-  #      path: C:\Development\projects\esphome\esphome\components
-  #    components:
-  #      - espnow
-  #  - source: github://pr#7137
-  #    components:
-  #      - i2s_audio
-  #      - speaker
-  #    refresh: 2s
-  #  - source: github://pr#5968
-  #    components:
-  #      - rtttl
-  #    refresh: 2s
-  #- source: github://pr#5230
-  #  components:
-  #    - esp_adf
   - source:
       type: local
       path: C:\Development\projects\combadge\components
 
-#esp_adf:
 
 i2s_audio:
   i2s_lrclk_pin: GPIO33
@@ -81,6 +63,8 @@ espnow:
         args: [it->rssi]
 
 intercom:
+  allow_broatcast: true
+
 
 binary_sensor:
   - platform: gpio

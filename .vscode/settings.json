@@ -80,7 +80,12 @@
         "xmemory": "cpp",
         "xtr1common": "cpp",
         "xtree": "cpp",
-        "xutility": "cpp"
+        "xutility": "cpp",
+        "condition_variable": "cpp",
+        "csignal": "cpp",
+        "numbers": "cpp",
+        "regex": "cpp",
+        "unordered_set": "cpp"
     },
     "workbench.colorCustomizations": {
         "statusBar.background": "#174417",
@@ -92,5 +97,6 @@
         "panel.border": "#246a24",
         "tab.activeBorder": "#246a24"
     },
-    "peacock.color": "#174417"
+    "peacock.color": "#174417",
+    "C_Cpp.errorSquiggles": "disabled"
 }
