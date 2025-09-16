@@ -13,7 +13,7 @@ namespace esphome::meshtest {
 static const char *const TAG = "meshtest";
 
 static const uint8_t MESHTEST_HEADER_REQ = 0x36;
-static const uint8_t MESHTEST_HEADER_REP = 0x38;
+static const uint8_t MESHTEST_HEADER_REP = 0x37;
 
 static const uint8_t MESHTEST_HEADER_SIZE = 1;
 
