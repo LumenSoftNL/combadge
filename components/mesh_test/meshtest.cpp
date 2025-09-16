@@ -75,7 +75,7 @@ bool MeshTest::handle_received_(uint8_t *data, size_t size, uint32_t from) {
   uint16_t new_counter_value = 0;
   if (data[0] == MESHTEST_HEADER_REQ) {
     if (size <= MESHTEST_HEADER_SIZE + sizeof(uint16_t)) {
-      ESP_LOGE(TAG, "packet size to small: %d vs %d", size, MESHTEST_HEADER_SIZE + sizeof(uint16_t));
+      ESP_LOGE(TAG, "Size: %d < %d", size, MESHTEST_HEADER_SIZE + sizeof(uint16_t));
       return false;
     }
     uint8_t column = MESHTEST_HEADER_SIZE;
@@ -87,24 +87,28 @@ bool MeshTest::handle_received_(uint8_t *data, size_t size, uint32_t from) {
     espmeshmesh::uint16toBuffer(rep + 2, new_counter_value);
 
     if (new_counter_value != this->old_counter_value_) {
-      ESP_LOGE(TAG, "packet counter missmatch: %d vs %d", new_counter_value, this->old_counter_value_);
+      ESP_LOGE(TAG, "Req %d vs %d", new_counter_value, this->old_counter_value_);
       rep[1] = 0x15;
+    } else {
+      ESP_LOGD(TAG, "Req %d", new_counter_value);
     }
-    ESP_LOGD(TAG, "Received Req N%X.%d: %s", from, new_counter_value, format_hex_pretty(data, size).c_str());
     ESP_LOGI(TAG, "Send Rep N%X.%d: %s", from, new_counter_value, format_hex_pretty(rep, 4).c_str());
     this->parent_->getNetwork()->uniCastSendData(rep, 4, from);
-
 
     this->old_counter_value_ = new_counter_value + 1;
     return true;
 
   } else if (data[0] == MESHTEST_HEADER_REP) {
     uint16_t cntr = espmeshmesh::uint16FromBuffer(data + 2);
-    if (espmeshmesh::uint16FromBuffer(data + 2) == this->old_counter_value_ - 1) {
-      ESP_LOGD(TAG, "Received Rep N%X.%d: %s", from, cntr, format_hex_pretty(data, size).c_str());
+    if (cntr == this->packet_counter_) {
+      ESP_LOGD(TAG, "Rep %d",cntr);
       this->can_send_packet_ = true;
+    } else {
+      ESP_LOGE(TAG, "Rep %d vs %d | %s",  cntr, this->packet_counter_);
     }
     return true;
+  } else {
+      ESP_LOGW(TAG, "Unhandled");
   }
   return false;
 }
