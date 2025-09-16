@@ -47,14 +47,14 @@ void MeshTest::send_packet_() {
     uint8_t column = 0;
     memcpy(&buffer[column], &MESHTEST_HEADER_REQ, MESHTEST_HEADER_SIZE);
     column += MESHTEST_HEADER_SIZE;
-    memcpy(&buffer[column], &this->packet_counter_, sizeof(uint16_t));
+    espmeshmesh::uint16toBuffer(buffer + column, ++this->packet_counter_);
     column += sizeof(uint16_t);
 
     espmeshmesh::uint32toBuffer(buffer + column, 0x14233241);
-
     column += SEND_BUFFER_SIZE;
-    this->packet_counter_++;
     this->can_send_packet_ = false;
+    ESP_LOGI(TAG, "Send Req N%X.%d: %s", this->address_, this->packet_counter_, format_hex_pretty(buffer, column).c_str());
+
     if (this->address_ != UINT32_MAX)
       this->parent_->getNetwork()->uniCastSendData((uint8_t *) &buffer, column, this->address_);
     else
@@ -90,9 +90,10 @@ bool MeshTest::handle_received_(uint8_t *data, size_t size, uint32_t from) {
       ESP_LOGE(TAG, "packet counter missmatch: %d vs %d", new_counter_value, this->old_counter_value_);
       rep[1] = 0x15;
     }
+    ESP_LOGD(TAG, "Received Req N%X.%d: %s", from, new_counter_value, format_hex_pretty(data, size).c_str());
+    ESP_LOGI(TAG, "Send Rep N%X.%d: %s", from, new_counter_value, format_hex_pretty(rep, 4).c_str());
     this->parent_->getNetwork()->uniCastSendData(rep, 4, from);
 
-    ESP_LOGD(TAG, "Received N%X.%d: %s", from, new_counter_value, format_hex_pretty(data, size).c_str());
 
     this->old_counter_value_ = new_counter_value + 1;
     return true;
@@ -100,7 +101,7 @@ bool MeshTest::handle_received_(uint8_t *data, size_t size, uint32_t from) {
   } else if (data[0] == MESHTEST_HEADER_REP) {
     uint16_t cntr = espmeshmesh::uint16FromBuffer(data + 2);
     if (espmeshmesh::uint16FromBuffer(data + 2) == this->old_counter_value_ - 1) {
-      ESP_LOGD(TAG, "Received N%X.%d: %s", from, cntr, format_hex_pretty(data, size).c_str());
+      ESP_LOGD(TAG, "Received Rep N%X.%d: %s", from, cntr, format_hex_pretty(data, size).c_str());
       this->can_send_packet_ = true;
     }
     return true;
