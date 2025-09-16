@@ -14,7 +14,6 @@ static const char *const TAG = "intercom";
 static const size_t SAMPLE_RATE_HZ = 16000;
 
 static const uint8_t INTERCOM_HEADER_REQ = 0x34;
-static const uint8_t INTERCOM_HEADER_REP = 0x35;
 
 static const uint8_t INTERCOM_HEADER_SIZE = 1;
 
@@ -140,34 +139,32 @@ void InterCom::loop() {
 
 void InterCom::send_audio_packet_() {
   size_t bytes_read = 0;
-  uint8_t buffer[SEND_BUFFER_SIZE + INTERCOM_HEADER_SIZE + sizeof(packet_counter_) + 1];
+  uint8_t buffer[SEND_BUFFER_SIZE + INTERCOM_HEADER_SIZE + sizeof(packet_counter_) + 2];
   if (this->can_send_packet_) {
     size_t available = this->ring_buffer_mic_->available();
     if (available > 0) {
-      uint8_t column = 0;
-      memcpy(&buffer[column], &INTERCOM_HEADER_REQ, INTERCOM_HEADER_SIZE);
-      column += INTERCOM_HEADER_SIZE;
-      memcpy(&buffer[column], &this->packet_counter_, sizeof(uint16_t));
-      column += sizeof(uint16_t);
+      buffer[0] = INTERCOM_HEADER_REQ;
+      buffer[1] = 2;
+      espmeshmesh::uint16toBuffer(buffer + 2, this->packet_counter_++);
 
       size_t read_size = std::min(available, SEND_BUFFER_SIZE);
-      size_t bytes_read = this->ring_buffer_mic_->read((void *) &buffer[column], read_size, pdMS_TO_TICKS(100));
+      size_t bytes_read = this->ring_buffer_mic_->read((void *) &buffer[4], read_size, pdMS_TO_TICKS(100));
+      this->set_timeout("InterCom",600,[this]() {this->can_send_packet_ = true;})
       if (bytes_read > 0) {
-        column += bytes_read;
-        this->packet_counter_++;
         this->can_send_packet_ = false;
-        if (this->address_ != 0)
-          this->parent_->getNetwork()->uniCastSendData((uint8_t *) &buffer, column, this->address_);
+        if (this->address_ != UINT32_MAX)
+          this->parent_->getNetwork()->uniCastSendData((uint8_t *) &buffer, column + 4, this->address_);
         else
-          this->parent_->getNetwork()->broadCastSendData((uint8_t *) &buffer, column);
+          this->parent_->getNetwork()->broadCastSendData((uint8_t *) &buffer, column + 4);
       }
     }
   }
 }
 
 bool InterCom::validate_address_(uint32_t address) {
-  if (address == 0) {
-    return this->broadcast_allowed_;
+  if (this->address_ == UINT32_MAX) {
+    // this->parent_->getNetwork()->lastCommandFromBroadcast()
+    return true;
   } else if (address == this->address_) {
     return true;
   }
@@ -176,33 +173,31 @@ bool InterCom::validate_address_(uint32_t address) {
 
 bool InterCom::handle_received_(uint8_t *data, size_t size, uint32_t from) {
   uint16_t new_counter_value = 0;
-  if (data[0] == INTERCOM_HEADER_REQ) {
-    if (size <= INTERCOM_HEADER_SIZE + sizeof(uint16_t)) {
-      return false;
-    }
-    uint8_t column = INTERCOM_HEADER_SIZE;
-    memcpy(&new_counter_value, data + column, sizeof(uint16_t));
-    column += sizeof(uint16_t);
-    uint8_t rep[4] = {0};
-    rep[0] = INTERCOM_HEADER_REP;
-    rep[1] = 0x06;
-    espmeshmesh::uint16toBuffer(rep + 2, new_counter_value);
+  uint8_t reply[4] = {INTERCOM_HEADER_REQ, 0x03, 0, 0};
+  if (data[1] == 2) {
+    if (size < 4) {
+      rep[1] = 0x83;
+    } else {
+      new_counter_value = espmeshmesh::uint16FromBuffer(data + 2);
+      column += sizeof(uint16_t);
+      espmeshmesh::uint16toBuffer(rep + 2, new_counter_value);
 
-    if (new_counter_value != this->old_counter_value_) {
-      ESP_LOGE(TAG, "packet counter missmatch: %d vs %d", new_counter_value, this->old_counter_value_);
-      rep[1] = 0x15;
+      if (new_counter_value != this->old_counter_value_) {
+        ESP_LOGE(TAG, "packet counter missmatch: %d vs %d", new_counter_value, this->old_counter_value_);
+        rep[1] = 0x83;
+      }
+      this->old_counter_value_ = new_counter_value + 1;
     }
-
     this->parent_->getNetwork()->uniCastSendData(rep, 4, from);
 
-    this->old_counter_value_ = new_counter_value + 1;
-    if (this->mode_ == Mode::SPEAKER && !this->wait_to_switch_) {
-      this->speaker_->play(data + column, size - column);
+    if (this->mode_ == Mode::SPEAKER && !this->wait_to_switch_ && size > 4) {
+      this->speaker_->play(data + 4, size - 4);
     }
 
     return true;
-  } else if (data[0] == INTERCOM_HEADER_REP) {
-    if (espmeshmesh::uint16FromBuffer(data+2) == this->old_counter_value_-1 ) {
+  } else if (data[1] & 0x03 == 0x03) {
+    if (espmeshmesh::uint16FromBuffer(data + 2) == this->packet_counter_-1) {
+      this->cancel_timeout("InterCom");
       this->can_send_packet_ = true;
     }
   }
@@ -210,9 +205,7 @@ bool InterCom::handle_received_(uint8_t *data, size_t size, uint32_t from) {
 }
 
 int8_t InterCom::handleFrame(uint8_t *buf, uint16_t len, uint32_t from) {
-    uint16_t lenx = std::min(len, 10);
-    ESP_LOGD(TAG, "Received packet from N%X: %s", from, format_hex_pretty(buf, lenx).c_str());
-  if (this->validate_address_(from)) {
+  if (this->validate_address_(from) && (buf[0] == INTERCOM_HEADER_REQ)) {
     bool result = this->handle_received_(buf, (size_t) len, from);
     return result ? HANDLE_UART_OK : FRAME_NOT_HANDLED;
   }
