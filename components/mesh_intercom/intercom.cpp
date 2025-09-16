@@ -149,7 +149,7 @@ void InterCom::send_audio_packet_() {
 
       size_t read_size = std::min(available, SEND_BUFFER_SIZE);
       size_t bytes_read = this->ring_buffer_mic_->read((void *) &buffer[4], read_size, pdMS_TO_TICKS(100));
-      this->set_timeout("InterCom",600,[this]() {this->can_send_packet_ = true;})
+      this->set_timeout("InterCom", 600, [this]() { this->can_send_packet_ = true; });
       if (bytes_read > 0) {
         this->can_send_packet_ = false;
         if (this->address_ != UINT32_MAX)
@@ -195,7 +195,7 @@ bool InterCom::handle_received_(uint8_t *data, size_t size, uint32_t from) {
 
     return true;
   } else if (data[1] & 0x03 == 0x03) {
-    if (espmeshmesh::uint16FromBuffer(data + 2) == this->packet_counter_-1) {
+    if (espmeshmesh::uint16FromBuffer(data + 2) == this->packet_counter_ - 1) {
       this->cancel_timeout("InterCom");
       this->can_send_packet_ = true;
     }
