@@ -63,7 +63,7 @@ void MeshTest::send_packet_() {
 
 bool MeshTest::validate_address_(uint32_t address) {
   if (this->address_ == UINT32_MAX) {
-    return this->broadcast_allowed_;
+    return true;
   } else if (address == this->address_) {
     return true;
   }
