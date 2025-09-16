@@ -110,11 +110,13 @@ bool MeshTest::handle_received_(uint8_t *data, size_t size, uint32_t from) {
 }
 
 int8_t MeshTest::handleFrame(uint8_t *buf, uint16_t len, uint32_t from) {
-  size_t lenx = std::min((size_t) len, (size_t) 10);
-  ESP_LOGD(TAG, "handleFrame N%X: %s", from, format_hex_pretty(buf, lenx).c_str());
+  size_t lenx = std::min((size_t) len, (size_t) 15);
   if (this->validate_address_(from)) {
+    ESP_LOGD(TAG, "handleFrame N%X: %s", from, format_hex_pretty(buf, lenx).c_str());
     bool result = this->handle_received_(buf, (size_t) len, from);
     return result ? HANDLE_UART_OK : FRAME_NOT_HANDLED;
+  } else {
+    ESP_LOGE(TAG, "handleFrame N%X: %s", from, format_hex_pretty(buf, lenx).c_str());
   }
   return FRAME_NOT_HANDLED;
 }
