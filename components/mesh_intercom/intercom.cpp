@@ -176,19 +176,18 @@ bool InterCom::handle_received_(uint8_t *data, size_t size, uint32_t from) {
   uint8_t reply[4] = {INTERCOM_HEADER_REQ, 0x03, 0, 0};
   if (data[1] == 2) {
     if (size < 4) {
-      rep[1] = 0x83;
+      reply[1] = 0x83;
     } else {
       new_counter_value = espmeshmesh::uint16FromBuffer(data + 2);
-      column += sizeof(uint16_t);
-      espmeshmesh::uint16toBuffer(rep + 2, new_counter_value);
+      espmeshmesh::uint16toBuffer(reply + 2, new_counter_value);
 
       if (new_counter_value != this->old_counter_value_) {
         ESP_LOGE(TAG, "packet counter missmatch: %d vs %d", new_counter_value, this->old_counter_value_);
-        rep[1] = 0x83;
+        reply[1] = 0x83;
       }
       this->old_counter_value_ = new_counter_value + 1;
     }
-    this->parent_->getNetwork()->uniCastSendData(rep, 4, from);
+    this->parent_->getNetwork()->uniCastSendData(reply, 4, from);
 
     if (this->mode_ == Mode::SPEAKER && !this->wait_to_switch_ && size > 4) {
       this->speaker_->play(data + 4, size - 4);
