@@ -35,7 +35,7 @@ class MeshTest : public Component, public Parented<meshmesh::MeshmeshComponent> 
   bool validate_address_(uint32_t address);
   uint32_t address_{0xffffffff};
 
-  uint16_t old_counter_value_ = 0;
+  uint16_t old_counter_value_ = 1;
   uint16_t packet_counter_ = 0;
 
   bool send_frames_{false};
