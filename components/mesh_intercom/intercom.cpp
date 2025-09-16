@@ -153,9 +153,9 @@ void InterCom::send_audio_packet_() {
       if (bytes_read > 0) {
         this->can_send_packet_ = false;
         if (this->address_ != UINT32_MAX)
-          this->parent_->getNetwork()->uniCastSendData((uint8_t *) &buffer, column + 4, this->address_);
+          this->parent_->getNetwork()->uniCastSendData((uint8_t *) &buffer, bytes_read + 4, this->address_);
         else
-          this->parent_->getNetwork()->broadCastSendData((uint8_t *) &buffer, column + 4);
+          this->parent_->getNetwork()->broadCastSendData((uint8_t *) &buffer, bytes_read + 4);
       }
     }
   }
