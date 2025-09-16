@@ -3,6 +3,7 @@
 #include "esphome/core/application.h"
 #include "esphome/core/log.h"
 
+#include <algorithm>
 #include <espmeshmesh.h>
 #include <cinttypes>
 #include <cstdio>
@@ -12,7 +13,7 @@ namespace esphome::meshtest {
 static const char *const TAG = "meshtest";
 
 static const uint8_t MESHTEST_HEADER_REQ = 0x36;
-static const uint8_t MESHTEST_HEADER_REP = 0x37;
+static const uint8_t MESHTEST_HEADER_REP = 0x38;
 
 static const uint8_t MESHTEST_HEADER_SIZE = 1;
 
@@ -108,6 +109,8 @@ bool MeshTest::handle_received_(uint8_t *data, size_t size, uint32_t from) {
 }
 
 int8_t MeshTest::handleFrame(uint8_t *buf, uint16_t len, uint32_t from) {
+  size_t lenx = std::min((size_t) len, (size_t) 10);
+  ESP_LOGD(TAG, "handleFrame N%X: %s", from, format_hex_pretty(buf, lenx).c_str());
   if (this->validate_address_(from)) {
     bool result = this->handle_received_(buf, (size_t) len, from);
     return result ? HANDLE_UART_OK : FRAME_NOT_HANDLED;
