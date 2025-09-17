@@ -17,9 +17,9 @@ static const uint8_t INTERCOM_HEADER_REQ = 0x34;
 
 static const uint8_t INTERCOM_HEADER_SIZE = 1;
 
-static const size_t SEND_BUFFER_SIZE = 240;
+static const size_t SEND_BUFFER_SIZE = 512;
 
-static const size_t RING_BUFFER_SIZE = (1024 * SAMPLE_RATE_HZ / 1000) * sizeof(int16_t);
+static const size_t RING_BUFFER_SIZE = (2048 * SAMPLE_RATE_HZ / 1000) * sizeof(int16_t);
 
 float InterCom::get_setup_priority() const { return setup_priority::LATE - 10; }
 
