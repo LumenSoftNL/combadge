@@ -199,6 +199,7 @@ bool InterCom::handle_received_(uint8_t *data, size_t size, uint32_t from) {
       this->cancel_timeout("InterCom");
       this->can_send_packet_ = true;
     }
+    return true;
   }
   return false;
 }
