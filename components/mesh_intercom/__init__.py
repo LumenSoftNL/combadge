@@ -41,7 +41,7 @@ IsModeCondition = intercom_ns.class_(
 
 Mode = intercom_ns.enum("Mode", is_class=True)
 MODE_ENUM = {
-    "NONE": Mode.NONE,
+    "IDLE": Mode.NONE,
     "MICROPHONE": Mode.MICROPHONE,
     "SPEAKER": Mode.SPEAKER,
 }
@@ -112,7 +112,24 @@ async def intercom_action_code(config, action_id, template_arg, args):
     return var
 
 
-@automation.register_condition("intercom.mode", IsModeCondition, INTERCOM_ACTION_SCHEMA)
+@automation.register_condition(
+    "intercom.is_mode", IsModeCondition, INTERCOM_ACTION_SCHEMA
+)
+@automation.register_condition(
+    "intercom.is_mic_mode",
+    IsModeCondition,
+    INTERCOM_ACTION_SCHEMA.extends({cv.Required(CONF_MODE): "MICROPHONE"}),
+)
+@automation.register_condition(
+    "intercom.is_spr_mode",
+    IsModeCondition,
+    INTERCOM_ACTION_SCHEMA.extends({cv.Required(CONF_MODE): "SPEAKER"}),
+)
+@automation.register_condition(
+    "intercom.is_idle_mode",
+    IsModeCondition,
+    INTERCOM_ACTION_SCHEMA.extends({cv.Required(CONF_MODE): "IDLE"}),
+)
 async def intercom_mode_change_action_code(config, condition_id, template_arg, args):
     var = cg.new_Pvariable(condition_id, template_arg)
     await cg.register_parented(var, config[CONF_ID])

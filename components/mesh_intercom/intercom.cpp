@@ -105,6 +105,9 @@ void InterCom::set_mode(Mode direction) {
 
 bool InterCom::is_in_mode(Mode direction) {
   if (this->has_mic_source_() && this->has_spr_source_()) {
+    if (this->wait_to_switch_) {
+      return false;
+    }
     switch (direction) {
       case Mode::MICROPHONE:
         return (this->mic_source_->is_running());
