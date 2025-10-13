@@ -128,7 +128,7 @@ INTERCOM_CONDITION_SCHEMA = cv.Schema(
     INTERCOM_CONDITION_SCHEMA.extend({cv.Required(CONF_MODE): "MICROPHONE"}),
 )
 @automation.register_condition(
-    "intercom.is_spr_mode",
+    "intercom.is_spk_mode",
     IsModeCondition,
     INTERCOM_CONDITION_SCHEMA.extend({cv.Required(CONF_MODE): "SPEAKER"}),
 )
