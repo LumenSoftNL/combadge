@@ -111,26 +111,34 @@ async def intercom_action_code(config, action_id, template_arg, args):
 
     return var
 
+
 INTERCOM_CONDITION_SCHEMA = cv.Schema(
     {
         cv.GenerateID(): cv.use_id(InterCom),
     },
 )
 
+
 @automation.register_condition(
     "intercom.is_mic_mode",
     IsModeCondition,
-    INTERCOM_CONDITION_SCHEMA.extend({cv.Optional(CONF_MODE): "MICROPHONE"}),
+    INTERCOM_CONDITION_SCHEMA.extend(
+        {cv.Optional(CONF_MODE, default="MICROPHONE"): cv.enum(MODE_ENUM, upper=True)}
+    ),
 )
 @automation.register_condition(
     "intercom.is_spk_mode",
     IsModeCondition,
-    INTERCOM_CONDITION_SCHEMA.extend({cv.Optional(CONF_MODE): "SPEAKER"}),
+    INTERCOM_CONDITION_SCHEMA.extend(
+        {cv.Optional(CONF_MODE, default="SPEAKER"): cv.enum(MODE_ENUM, upper=True)}
+    ),
 )
 @automation.register_condition(
     "intercom.is_idle_mode",
     IsModeCondition,
-    INTERCOM_CONDITION_SCHEMA.extend({cv.Optional(CONF_MODE): "IDLE"}),
+    INTERCOM_CONDITION_SCHEMA.extend(
+        {cv.Optional(CONF_MODE, default="IDLE"): cv.enum(MODE_ENUM, upper=True)}
+    ),
 )
 async def intercom_mode_change_action_code(config, condition_id, template_arg, args):
     var = cg.new_Pvariable(condition_id, template_arg)
