@@ -1,0 +1,26 @@
+{
+  "C_Cpp.intelliSenseEngine": "default",
+  "idf.espIdfPathWin": "d:\\Development\\espressif\\v5.5.1\\esp-idf",
+  "idf.toolsPathWin": "D:\\Development\\espressif\\Tools",
+  "idf.pythonInstallPath": "D:\\Development\\espressif\\Tools\\tools\\idf-python\\3.11.2\\python.exe",
+  "idf.portWin": "COM4",
+  "idf.monitorPort": "COM9",
+  "idf.flashBaudRate": "1500000",
+  "idf.openOcdConfigs": [
+    "interface/ftdi/esp32_devkitj_v1.cfg",
+    "target/esp32.cfg"
+  ],
+  "idf.customExtraVars": {
+    "OPENOCD_SCRIPTS": "C:\\Development\\espressif\\Espressif\\tools\\openocd-esp32\\v0.12.0-esp32-20240318/openocd-esp32/share/openocd/scripts",
+    "IDF_CCACHE_ENABLE": "1",
+    "ESP_ROM_ELF_DIR": "C:\\Development\\espressif\\Espressif\\tools\\esp-rom-elfs\\20240305/",
+    "IDF_TARGET": "esp32"
+  },
+  "clangd.path": "D:\\Development\\espressif\\Tools\\tools\\esp-clang\\esp-19.1.2_20250312\\esp-clang\\bin\\clangd.exe",
+  "clangd.arguments": [
+    "--background-index",
+    "--query-driver=D:\\Development\\espressif\\Tools\\tools\\xtensa-esp-elf\\esp-14.2.0_20241119\\xtensa-esp-elf\\bin\\xtensa-esp32-elf-gcc.exe",
+    "--compile-commands-dir=d:\\Development\\projects\\NowTalkBadge\\demos\\espnow\\build"
+  ],
+  "idf.flashType": "UART"
+}

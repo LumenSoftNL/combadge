@@ -1,0 +1,26 @@
+{
+  "combadge": {
+    "build": {
+      "compileArgs": [],
+      "ninjaArgs": [],
+      "buildDirectoryPath": "",
+      "sdkconfigDefaults": [],
+      "sdkconfigFilePath": ""
+    },
+    "env": {},
+    "idfTarget": "esp32",
+    "flashBaudRate": "1500000",
+    "monitorBaudRate": "",
+    "openOCD": {
+      "debugLevel": -1,
+      "configs": [],
+      "args": []
+    },
+    "tasks": {
+      "preBuild": "",
+      "preFlash": "",
+      "postBuild": "",
+      "postFlash": ""
+    }
+  }
+}
